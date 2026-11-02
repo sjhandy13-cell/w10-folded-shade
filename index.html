@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>접힌 그늘</title>
+<meta name="description" content="한 장의 판이 접혀 일어나는 파빌리온 - 디지털디자인(2) 중간발표">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #e8eae7;
+  --ground: #d5d9d6;
+  --ink: #18202b;
+  --ink-2: #57616d;
+  --ink-3: #8a929b;
+  --hair: rgba(24, 32, 43, .14);
+  --veil: rgba(232, 234, 231, .86);
+  --cobalt: #2747c7;
+  --valley: #2747c7;
+  --signal: #d4422c;
+  --wood: #cdb892;
+  --open: #9fcfe0;
+  --perf: #a3a8ad;
+  --solid: #5d636b;
+  --side: 340px;
+  --gap: 24px;
+  color-scheme: light;
+}
+:root[data-theme="grey"] { --paper: #dcdfdc; --ground: #cfd3cf; --veil: rgba(226, 229, 226, .9); }
+:root[data-theme="white"] { --paper: #fafaf9; --ground: #efefed; --veil: rgba(250, 250, 249, .9); }
+:root[data-theme="dark"] { --paper: #141a22; --ground: #1c232c; --ink: #e4e8ec; --ink-2: #a7b0ba; --ink-3: #6c7681; --hair: rgba(228, 232, 236, .16); --veil: rgba(20, 26, 34, .84); --cobalt: #6f8cff; --valley: #6f8cff; color-scheme: dark; }
+:root[data-accent="orange"] { --cobalt: #d2602a; }
+:root[data-accent="green"] { --cobalt: #2c7a57; }
+:root[data-theme="dark"][data-accent="orange"] { --cobalt: #f08a4b; }
+:root[data-theme="dark"][data-accent="green"] { --cobalt: #4fb488; }
+:root[data-font="pretendard"] body { font-family: "Pretendard", "Pretendard Variable", "Noto Sans CJK KR", system-ui, sans-serif; letter-spacing: -0.005em; }
+:root[data-font="serif"] body { font-family: "Noto Serif KR", "Noto Serif CJK KR", serif; }
+:root[data-font="serif"] .say, :root[data-font="serif"] .step p { line-height: 1.7; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); }
+body { font: 400 15px/1.55 "IBM Plex Sans KR", "Noto Sans CJK KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; outline: none; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+/* 이름과 한 문장 */
+#title { position: fixed; left: var(--gap); top: 20px; max-width: min(560px, calc(100vw - 2 * var(--gap))); pointer-events: none; }
+#title h1 { margin: 0; font-weight: 300; font-size: 44px; line-height: 1.08; letter-spacing: -.015em; }
+#title p { margin: 10px 0 0; font-size: 17px; line-height: 1.6; color: var(--ink); max-width: 34em; text-wrap: balance; }
+body.night #title { color: #e4e8ec; }
+body.night #title p { color: #c3cad2; }
+body.night #nav button { color: #8b95a0; } body.night #nav button.on, body.night #timer { color: #e4e8ec; }
+#title .ref { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+
+/* 장면 카드 (왼쪽) */
+#card { position: fixed; left: var(--gap); bottom: 92px; width: var(--side); max-height: calc(100vh - 290px); overflow: auto;
+  background: var(--veil); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-left: 2px solid var(--ink); padding: 16px 18px 18px; }
+.scene { display: none; }
+.scene.on { display: block; }
+.scene h2 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -.01em; display: flex; align-items: baseline; gap: 10px; }
+.scene h2 .no { font-weight: 300; color: var(--ink-3); font-size: 22px; }
+.say { margin: 8px 0 0; font-size: 16px; line-height: 1.6; }
+.step { display: none; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.step.on { display: block; }
+.step h3 { margin: 0 0 6px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.step p { margin: 6px 0 0; font-size: 14px; line-height: 1.6; }
+.step p.small, .small { font-size: 13px; color: var(--ink-2); }
+.pair { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; margin-top: 6px; }
+.pair dt { color: var(--ink-2); }
+.pair dd { margin: 0; }
+
+/* 조작 */
+.ctl { margin-top: 12px; }
+.ctl label.row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+.ctl label.row output { color: var(--ink); font-weight: 500; font-size: 14px; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; --p: 50%; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(90deg, var(--cobalt) var(--p), rgba(24,32,43,.18) var(--p)); }
+input[type=range]::-moz-range-track { height: 3px; background: rgba(24,32,43,.18); }
+input[type=range]::-moz-range-progress { height: 3px; background: var(--cobalt); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6.5px; border-radius: 50%; background: var(--paper); border: 2px solid var(--cobalt); }
+input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--cobalt); }
+.seg { display: inline-flex; border: 1px solid var(--ink); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.seg button { background: transparent; border: 0; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--ink); }
+.seg button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
+.btn { background: transparent; border: 1px solid var(--ink); border-radius: 3px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.btn:hover { background: rgba(24,32,43,.06); }
+.btn.solid { background: var(--ink); color: var(--paper); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 10px; cursor: pointer; }
+.check input { accent-color: var(--cobalt); width: 15px; height: 15px; margin: 0; }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 1px; vertical-align: -1px; margin-right: 5px; }
+.mv { font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+.mv b { font-weight: 500; }
+
+/* 오른쪽 패널 */
+#side { position: fixed; right: var(--gap); top: 20px; bottom: 92px; width: var(--side); display: flex; flex-direction: column; justify-content: flex-start; pointer-events: none; }
+.sidebox { display: none; pointer-events: auto; background: var(--veil); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 14px 16px 16px; max-height: 100%; overflow: auto; border-right: 2px solid var(--ink); }
+.sidebox.on { display: block; }
+.sidebox h3 { margin: 0 0 8px; font-size: 15px; font-weight: 500; }
+.sidebox .unit { color: var(--ink-2); font-weight: 400; font-size: 13px; }
+.ramp { height: 12px; margin-top: 6px; }
+.ticks { position: relative; height: 34px; font-size: 12px; color: var(--ink-2); }
+.ticks span { position: absolute; top: 2px; transform: translateX(-50%); white-space: nowrap; }
+.ticks span::before { content: ""; position: absolute; left: 50%; top: -4px; width: 1px; height: 5px; background: var(--ink-2); }
+.ticks span:first-child { transform: none; } .ticks span:first-child::before { left: 0; }
+.ticks span:last-child { transform: translateX(-100%); } .ticks span:last-child::before { left: auto; right: 0; }
+svg.strip { display: block; width: 100%; height: auto; margin-top: 4px; }
+.rule { margin: 10px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.rule li { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: baseline; padding: 4px 0; border-top: 1px solid var(--hair); }
+.rule li:first-child { border-top: 0; }
+.rule .n { font-weight: 500; }
+.flow { display: grid; gap: 10px; font-size: 13px; }
+.flow section { border: 1px solid var(--hair); padding: 8px 10px; background: rgba(255,255,255,.35); }
+.flow h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+.flow ul { margin: 0; padding-left: 16px; }
+.flow .arrow { text-align: center; color: var(--ink-3); line-height: 1; font-size: 14px; margin: -4px 0; }
+figure.cap { margin: 12px 0 0; }
+figure.cap img { width: 100%; display: block; border: 1px solid var(--hair); cursor: zoom-in; background: #fff; }
+figure.cap .empty { border: 1px dashed var(--ink-3); padding: 18px 12px; font-size: 13px; color: var(--ink-2); text-align: center; }
+figure.cap figcaption { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+.ai dl { margin: 8px 0 0; font-size: 13px; }
+.ai dt { font-weight: 500; margin-top: 10px; display: flex; gap: 6px; }
+.ai dt .badge { flex: none; width: 18px; height: 18px; border-radius: 50%; color: #fff; background: var(--signal); font-size: 12px; text-align: center; line-height: 18px; }
+.ai.fixed dt .badge { background: var(--cobalt); }
+.ai dd { margin: 2px 0 0 24px; color: var(--ink-2); }
+.ai dd.fix { color: var(--cobalt); display: none; }
+.ai.fixed dd.fix { display: block; }
+.ai .q { font-size: 13px; padding: 8px 10px; background: rgba(255,255,255,.45); border: 1px solid var(--hair); }
+table.count { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.count th { text-align: left; font-weight: 500; color: var(--ink-2); padding: 4px 4px 4px 0; border-bottom: 1px solid var(--ink); }
+table.count td { padding: 5px 4px 5px 0; border-bottom: 1px solid var(--hair); vertical-align: top; }
+table.count td.num, table.count th.num { text-align: right; padding-right: 0; }
+table.count tr.fam td { padding-top: 10px; font-weight: 500; border-bottom: 0; }
+table.count tr.total td { border-top: 1px solid var(--ink); border-bottom: 0; font-weight: 600; padding-top: 7px; }
+table.count .mat { display: block; color: var(--ink-2); font-size: 12px; }
+.matlist { display: grid; gap: 4px; margin-top: 6px; }
+.matlist label { display: grid; grid-template-columns: 16px 1fr 70px; align-items: center; gap: 8px; font-size: 13px; padding: 4px 6px; cursor: pointer; border: 1px solid transparent; }
+.matlist label:has(input:checked) { border-color: var(--ink); background: rgba(255,255,255,.4); }
+.matlist input { accent-color: var(--cobalt); margin: 0; }
+.bar { height: 6px; background: rgba(24,32,43,.12); position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+.seq { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; counter-reset: s; }
+.seq li { padding: 3px 0 3px 24px; position: relative; color: var(--ink-3); }
+.seq li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border-radius: 50%; border: 1px solid currentColor; font-size: 11px; text-align: center; line-height: 15px; }
+.seq li.done { color: var(--ink); }
+.seq li.now { color: var(--cobalt); font-weight: 500; }
+
+/* 장면 이동 */
+#nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; display: flex; align-items: center; gap: 0; white-space: nowrap; width: max-content; }
+#nav button { background: transparent; border: 0; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 10px; color: var(--ink-3); font-size: 14px; }
+#nav button .dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid currentColor; font-size: 12px; display: grid; place-items: center; }
+#nav button.seen { color: var(--ink-2); }
+#nav button.on { color: var(--ink); font-weight: 500; }
+#nav button.on .dot { background: var(--cobalt); border-color: var(--cobalt); color: #fff; }
+#nav .link { width: 18px; height: 1px; background: var(--ink-3); }
+#nav .sub { display: flex; gap: 4px; margin-left: 2px; }
+#nav .sub i { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); opacity: .5; }
+#nav .sub i.on { background: var(--cobalt); opacity: 1; }
+#arrows { position: fixed; right: var(--gap); bottom: 22px; display: flex; gap: 6px; align-items: center; }
+#prev, #next { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ink); background: var(--veil); cursor: pointer; font-size: 16px; }
+#camSeg { margin: 0 10px 0 0; background: var(--veil); }
+#camSeg button { padding: 5px 10px; font-size: 12px; }
+#timer { font-size: 13px; color: var(--ink-2); margin-right: 8px; min-width: 88px; text-align: right; }
+#timer.late { color: var(--signal); font-weight: 500; }
+
+/* 3D 위 라벨 */
+#labels { position: fixed; inset: 0; pointer-events: none; }
+.tag { position: absolute; transform: translate(-6px, -50%); display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; transition: opacity .3s; }
+.tag .pin { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--signal); color: #fff; font-size: 12px; display: grid; place-items: center; box-shadow: 0 0 0 4px rgba(212,66,44,.22); }
+.tag.fix .pin { background: var(--cobalt); box-shadow: 0 0 0 4px rgba(39,71,199,.2); }
+.tag .txt { background: var(--veil); padding: 2px 7px; border-left: 2px solid var(--signal); }
+.tag.fix .txt { border-left-color: var(--cobalt); }
+.tag.plain .pin { width: 8px; height: 8px; background: var(--ink); box-shadow: none; }
+.tag.plain .txt { border-left-color: var(--ink); }
+
+/* 끝맺음, 노트, 확대 */
+body.closing #card, body.closing #side, body.closing #title p { opacity: 0; pointer-events: none; }
+#card, #side, #title p { transition: opacity .6s; }
+#closing { position: fixed; inset: 0; display: grid; place-items: end center; padding-bottom: 96px; pointer-events: none; opacity: 0; transition: opacity 1.2s; }
+#closing.on { opacity: 1; }
+#closing p { max-width: 24em; text-align: center; font-size: 30px; line-height: 1.5; font-weight: 300; background: var(--veil); padding: 16px 28px; margin: 0; text-wrap: balance; }
+#notes { position: fixed; left: 50%; transform: translateX(-50%); bottom: 72px; width: min(720px, calc(100vw - 32px)); background: var(--ink); color: var(--paper); padding: 12px 16px; font-size: 15px; line-height: 1.6; display: none; }
+#notes.on { display: block; }
+#notes small { display: block; color: var(--ink-3); font-size: 12px; margin-bottom: 4px; }
+#lightbox { position: fixed; inset: 0; background: rgba(24,32,43,.85); display: none; place-items: center; padding: 32px; cursor: zoom-out; z-index: 5; }
+#lightbox.on { display: grid; }
+#lightbox img { max-width: 100%; max-height: 100%; background: #fff; }
+#msg { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; }
+#msg.on { display: grid; }
+#help { position: fixed; left: var(--gap); bottom: 26px; margin: 0; font-size: 12px; color: var(--ink-3); display: flex; gap: 14px; }
+
+@media (max-width: 1500px) { #help { display: none; } #nav button:not(.on) .label { display: none; } }
+@media (max-width: 1280px) { :root { --side: 300px; } #title h1 { font-size: 36px; } }
+@media (max-width: 860px) {
+  :root { --gap: 16px; }
+  #title { top: 14px; } #title h1 { font-size: 28px; } #title p { font-size: 15px; }
+  #card { left: 0; right: 0; bottom: 56px; width: auto; max-height: 36vh; border-left: 0; border-top: 2px solid var(--ink); }
+  #side { left: var(--gap); right: var(--gap); top: auto; bottom: calc(36vh + 64px); width: auto; max-height: 24vh; }
+  .sidebox { border-right: 0; border-left: 2px solid var(--ink); font-size: 13px; padding: 10px 12px; }
+  #nav { left: 0; right: 0; bottom: 0; transform: none; height: 56px; padding: 0 12px; background: var(--paper); border-top: 1px solid var(--hair); }
+  #nav button { padding: 6px 3px; } #nav .label, #nav .sub { display: none; } #nav .link { width: 8px; }
+  #arrows { bottom: 10px; right: 12px; } #timer, #help { display: none; }
+  #closing p { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.js", "three/addons/": "./lib/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="파빌리온 3D 모델"></canvas>
+
+<header id="title">
+  <h1 id="name">접힌 그늘</h1>
+  <p id="concept"></p>
+</header>
+
+<main id="card" aria-live="polite">
+  <!-- 1 아이디어 -->
+  <article class="scene" data-scene="0">
+    <h2><span class="no">1</span>아이디어</h2>
+    <p class="say">판 한 장이 접혀 서서, 여름 해는 막고 빛의 결은 들입니다.</p>
+    <div class="step" data-step="1">
+      <h3>참고한 것과 바꾼 것</h3>
+      <dl class="pair">
+        <dt>느끼게 할 것</dt><dd>접힌 판 아래에서 시간마다 자리를 옮기는 여름 빛의 결</dd>
+        <dt>참고</dt><dd>Eighteen Turns, 다니엘 리베스킨트 (2001). 접은 판으로 벽과 지붕을 한 몸으로 만든 파빌리온</dd>
+        <dt>바꾼 것</dt><dd>고정된 접힌 조각을, 한 장의 판이 실제로 접혀 서는 구조로. 접는 정도 하나로 평평한 판에서 파빌리온까지</dd>
+        <dt>웹 참고</dt><dd>Origami Simulator: 접는 정도를 슬라이더 하나로 움직이는 방식</dd>
+      </dl>
+    </div>
+  </article>
+
+  <!-- 2 데이터 -->
+  <article class="scene" data-scene="1">
+    <h2><span class="no">2</span>데이터</h2>
+    <p class="say">여름 해를 많이 받는 판은 막고, 적게 받는 판은 엽니다.</p>
+    <div class="step keep" data-step="0">
+      <div class="seg" role="group" aria-label="보기">
+        <button type="button" data-goto="1,0" aria-pressed="true">일사 값</button>
+        <button type="button" data-goto="1,1" aria-pressed="false">값이 바꾼 창</button>
+      </div>
+      <p class="small" id="dataLead">판마다 Ladybug 로 계산한 6~8월 누적 일사량입니다. 진할수록 해를 많이 받습니다.</p>
+    </div>
+    <div class="step" data-step="1">
+      <h3>안으로 드는 빛</h3>
+      <div class="ctl">
+        <label class="row" for="sunHour"><span>서울, 7월 21일</span><output id="sunOut">10:00</output></label>
+        <input type="range" id="sunHour" min="5.5" max="19.5" step="0.25" value="10">
+      </div>
+      <p class="small" id="sunInfo"></p>
+      <p class="small">열린 창과 타공판을 지난 빛이 안쪽 바닥에 얼룩을 만들고, 막힌 창은 그늘을 만듭니다.</p>
+    </div>
+  </article>
+
+  <!-- 3 로직 -->
+  <article class="scene" data-scene="2">
+    <h2><span class="no">3</span>로직</h2>
+    <p class="say">접는 값 하나로 평평한 판이 파빌리온이 됩니다.</p>
+    <div class="step keep" data-step="0">
+      <div class="ctl">
+        <label class="row" for="foldT"><span>접기</span><output id="foldOut">100%</output></label>
+        <input type="range" id="foldT" min="0" max="100" step="1" value="100">
+      </div>
+      <div class="btns"><button type="button" class="btn" id="foldPlay">처음부터 접기</button></div>
+      <p class="mv" id="foldStats"></p>
+      <label class="check"><input type="checkbox" id="creaseToggle" checked> 접힘선 보기</label>
+      <p class="mv"><span class="key" style="background:var(--signal)"></span>산접기 <b id="nM">0</b> <span class="key" style="background:var(--valley);margin-left:10px"></span>골접기 <b id="nV">0</b></p>
+      <p class="small">판은 휘거나 늘어나지 않고 접힘선에서만 돕니다.</p>
+    </div>
+    <div class="step" data-step="1">
+      <h3>그래스호퍼와 같은 공식</h3>
+      <p class="small" id="matchInfo"></p>
+      <label class="check" id="glbRow" hidden><input type="checkbox" id="glbToggle"> 라이노에서 내보낸 glb 겹쳐 보기</label>
+    </div>
+  </article>
+
+  <!-- 4 구조 -->
+  <article class="scene" data-scene="3">
+    <h2><span class="no">4</span>구조·AI</h2>
+    <p class="say">주름이 보 역할을 하고, 힘은 주름을 따라 양 발로 내려갑니다.</p>
+    <div class="step keep" data-step="0">
+      <label class="check"><input type="checkbox" id="loadToggle" checked> 하중 경로 보기</label>
+      <p class="small">주름 깊이 <b id="depthTxt">0.46 m</b>, 경간의 1/<span id="depthRatio">14</span>. 이 깊이가 얇은 판을 보처럼 만듭니다.</p>
+    </div>
+    <div class="step keep" data-step="1">
+      <div class="seg" role="group" aria-label="수정 전후">
+        <button type="button" data-goto="3,1" aria-pressed="true">수정 전</button>
+        <button type="button" data-goto="3,2" aria-pressed="false">수정 후</button>
+      </div>
+      <p class="small" id="beforeTxt">힌지를 잠그지 않으면 자기 무게에 접힘이 펴지며 주저앉습니다. (변형은 과장)</p>
+    </div>
+    <div class="step" data-step="2">
+      <p class="small">꺾임 힌지 잠금판, 받침 슈와 바닥 아래 타이, 양 끝 테두리 프레임을 더해 접힌 모양을 고정했습니다.</p>
+    </div>
+  </article>
+
+  <!-- 5 재료·조인트·생산 -->
+  <article class="scene" data-scene="4">
+    <h2><span class="no">5</span>재료·조인트·생산</h2>
+    <p class="say">판 5종과 힌지로 땅에서 평평하게 조립하고, 접어 올려 세웁니다.</p>
+    <div class="step" data-step="0">
+      <div class="ctl">
+        <label class="row" for="explode"><span>부재 펼쳐 보기</span><output id="explodeOut">0%</output></label>
+        <input type="range" id="explode" min="0" max="100" step="1" value="0">
+      </div>
+    </div>
+    <div class="step" data-step="1">
+      <div class="btns"><button type="button" class="btn" id="jointBtn" aria-pressed="false">조인트 확대</button></div>
+      <h3 style="margin-top:12px">판 재료와 빛 반사</h3>
+      <div class="matlist" id="matList"></div>
+    </div>
+    <div class="step" data-step="2">
+      <h3>조립과 해체</h3>
+      <ol class="seq" id="seq">
+        <li>바닥에 평평하게 펼쳐 판, 창, 힌지 조립</li>
+        <li>접어 올리기</li>
+        <li>힌지 잠금</li>
+        <li>받침 슈와 타이 고정</li>
+      </ol>
+      <div class="btns">
+        <button type="button" class="btn solid" id="assemble">조립 재생</button>
+        <button type="button" class="btn" id="disassemble">해체 재생</button>
+      </div>
+      <p class="small">해체는 거꾸로. 잠금을 풀고 다시 평평하게 펴서 판을 쌓아 옮깁니다.</p>
+    </div>
+    <div class="step" data-step="3">
+      <p class="small">처음 문장으로 돌아갑니다.</p>
+    </div>
+  </article>
+</main>
+
+<aside id="side">
+  <section class="sidebox" data-for="1">
+    <h3><span id="dataLabel">6~8월 누적 일사</span> <span class="unit" id="dataUnit">kWh/m²</span></h3>
+    <div class="ramp" id="rampBar"></div>
+    <div class="ticks" id="rampTicks"></div>
+    <p class="small" id="dataSrc"></p>
+    <div id="ruleBox" hidden>
+      <h3 style="margin-top:8px">값이 바꾼 것: 창 모듈</h3>
+      <svg class="strip" id="strip" viewBox="0 0 300 64" aria-label="판 150장을 일사량 순서로 놓고 창 종류로 나눈 그림"></svg>
+      <ul class="rule" id="ruleList"></ul>
+    </div>
+  </section>
+  <section class="sidebox" data-for="2">
+    <h3>그래스호퍼 흐름</h3>
+    <div class="flow" id="flow"></div>
+    <figure class="cap" id="ghFig">
+      <img id="ghImg" alt="그래스호퍼 캔버스 캡처" hidden>
+      <div class="empty" id="ghEmpty">GH 캔버스 캡처를 <b>assets/gh_canvas.png</b> 로 넣으면 여기에 보입니다.</div>
+      <figcaption>입력 → 규칙 → 출력 세 그룹으로 정리한 캔버스</figcaption>
+    </figure>
+  </section>
+  <section class="sidebox ai" data-for="3" id="aiBox">
+    <h3>AI 구조 검토</h3>
+    <p class="q">질문: 이 접힌 판 파빌리온이 서 있으려면 어디가 약한가?</p>
+    <dl>
+      <dt><span class="badge">1</span>힌지가 풀리면 펴지며 주저앉음</dt>
+      <dd>접히는 판은 자유도 1인 기계. 잠그기 전엔 구조가 아님</dd>
+      <dd class="fix">꺾임 힌지 <span data-count="hinge_zig">270</span>개에 잠금판, 주름 힌지는 볼트 고정</dd>
+      <dt><span class="badge">2</span>발이 바깥으로 벌어짐</dt>
+      <dd>아치처럼 미는 힘. 높은 뱃머리 쪽은 넘어가려는 힘도</dd>
+      <dd class="fix">받침 슈 <span data-count="shoe">62</span>개 + 앵커, 양 발 사이 바닥 아래 타이 7줄</dd>
+      <dt><span class="badge">3</span>열린 양 끝 주름이 벌어짐</dt>
+      <dd>끝 가장자리가 자유단이라 주름이 퍼짐</dd>
+      <dd class="fix">양 끝에 주름을 따라가는 테두리 프레임</dd>
+    </dl>
+  </section>
+  <section class="sidebox" data-for="4">
+    <h3>부재 블록과 개수</h3>
+    <table class="count" id="countTable"></table>
+  </section>
+</aside>
+
+<nav id="nav" aria-label="장면"></nav>
+<div id="arrows">
+  <div class="seg" id="camSeg" role="group" aria-label="투영" title="O 키로도 바꿉니다. 안쪽 시점은 늘 원근"><button type="button" data-cam="persp" aria-pressed="true">원근</button><button type="button" data-cam="ortho" aria-pressed="false">평행</button></div>
+  <span id="timer" title="T 로 초기화">0:00 / 3:45</span>
+  <button type="button" id="prev" aria-label="이전">‹</button>
+  <button type="button" id="next" aria-label="다음">›</button>
+</div>
+<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>N 노트</span><span>F 전체화면</span></p>
+<div id="labels"></div>
+<div id="closing"><p id="closingTxt"></p></div>
+<div id="notes" role="note"></div>
+<div id="lightbox"><img alt=""></div>
+<div id="msg"><p></p></div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>
