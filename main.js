@@ -124,7 +124,8 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = CONFIG.shadow === 'sharp' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = { aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping }[CONFIG.tone] || THREE.NeutralToneMapping;
-renderer.toneMappingExposure = CONFIG.tone === 'aces' ? 1.1 : CONFIG.tone === 'agx' ? 1.15 : 1;
+const BASE_EXPOSURE = CONFIG.tone === 'aces' ? 1.1 : CONFIG.tone === 'agx' ? 1.15 : 1;
+renderer.toneMappingExposure = BASE_EXPOSURE;
 const shadowDirty = () => { renderer.shadowMap.needsUpdate = true; };
 
 const scene = new THREE.Scene();
@@ -469,6 +470,7 @@ function moonDir(hour, day = 202) {
   const s = sunVec(37.57, -declination(day), ha);
   return { s, w: new THREE.Vector3(s[0], s[2], -s[1]) };
 }
+const SUNNOW = { w: new THREE.Vector3(0, 1, 0), alt: 1, mw: new THREE.Vector3(0, -1, 0), malt: -1 };
 const azName = (s) => BEARING[Math.round(((Math.atan2(s[0], s[1]) * 180 / Math.PI + 360) % 360) / 45) % 8];
 function setSun(hour) {
   state.hour = hour;
@@ -480,6 +482,7 @@ function setSun(hour) {
   sun.visible = alt > 0;
   const f = clamp((6 - altD) / 12, 0, 1);                       // 해 높이 6° 이상 낮, -6° 이하 밤
   const m = moonDir(hour), malt = Math.asin(clamp(m.s[2], -1, 1));
+  SUNNOW.w.copy(w); SUNNOW.alt = alt; SUNNOW.mw.copy(m.w); SUNNOW.malt = malt;
   applySky(f, m.w, malt);
   const hh = Math.floor(hour) % 24, mm = Math.round((hour - Math.floor(hour)) * 60);
   $('#sunOut').textContent = `${hh}:${String(mm).padStart(2, '0')}`;
@@ -544,7 +547,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   if (pov.on && pov.looking) {
-    pov.yawOff -= (e.clientX - pov.lx) * 0.0045; pov.pitch = clamp(pov.pitch - (e.clientY - pov.ly) * 0.0045, -1.1, 0.9);
+    pov.yawOff -= (e.clientX - pov.lx) * 0.0045; pov.pitch = clamp(pov.pitch - (e.clientY - pov.ly) * 0.0045, -1.1, 1.35);
     pov.lx = e.clientX; pov.ly = e.clientY; return;
   }
   if (!walk.dragging) return;
@@ -621,7 +624,8 @@ function updatePov(dt = 0.016) {
 // ------------------------------------------------------------------ 공원 (1장면): 잔디, 산책로, 광장, 나무, 관목, 벤치, 쓰레기통, 가로등, 화단, 사람들
 const park = new THREE.Group(); park.visible = false; scene.add(park);
 const parkLamps = [];          // 밤 빛 웅덩이 자리
-const PLAZA_LAMPS = [[-9.9, ZC - 3.2], [9.9, ZC - 5.9], [-9.9, ZC + 5.9], [9.9, ZC + 5.9]];   // 광장 모서리 가로등 (밤에 실제 빛)
+const parkOccluders = [];      // 눈부심 계산에서 해를 가리는 것 (나무, 생울타리)
+const PLAZA_LAMPS = [[-9.9, ZC - 3.2], [9.9, ZC - 5.9], [-9.9, ZC + 5.9]];   // 남동쪽 모서리는 첫 화면 앞이라 비움   // 광장 모서리 가로등 (밤에 실제 빛)
 let parkLampMat = null;
 {
   let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -739,6 +743,7 @@ let parkLampMat = null;
   SHR.forEach((b, i) => { for (let k = 0; k < 3; k++) { const a = k * 2.1 + b.k; place(bush, i * 3 + k, b.x + Math.cos(a) * 0.45 * b.s, 0.45 * b.s, b.z + Math.sin(a) * 0.45 * b.s, a, b.s * 1.1, b.s * 0.85, b.s); bush.setColorAt(i * 3 + k, greens[(b.k + k) % 5].clone().multiplyScalar(0.92)); } });
   const HEDGE = [[-6.2, ZC - 5.75, 4.6], [6.2, ZC - 5.75, 4.6], [-6.2, ZC + 5.75, 4.6], [6.2, ZC + 5.75, 4.6]];
   const hedge = inst(new THREE.BoxGeometry(1, 0.62, 0.6).translate(0, 0.31, 0), std('#5f7d4f', 0.95), HEDGE.length);
+  parkOccluders.push(crown, cone, trunk);
   HEDGE.forEach(([x, z, L], i) => place(hedge, i, x, 0, z, 0, L, 1, 1));
 
   // 벤치 (나무 살 + 주물 다리), 쓰레기통, 가로등
@@ -1050,7 +1055,7 @@ const CAM = {
   data0: [[11.5, 17, 13.5], [0, 1.6, -0.3]],
   dataBar: [[13, 15, -13.5], [0, 2.0, -0.5]],
   data1: [[4.6, 1.7, -2.4], [-2.5, 0.5, 1.3]],
-  night: [[-21, 4.4, -15], [1, 4.8, -1]],          // 북서쪽에서 남동쪽 하늘을 봄: 떠오르는 보름달이 보임
+  night: [[-21, 3.6, -15], [1, 6.4, -1]],          // 북서쪽에서 남동쪽 하늘을 봄: 떠오르는 보름달이 보임
   logic: [[-15, 14, 17], [0, 1.0, 0]],
   struct: [[16.5, 4.4, 7.0], [0, 2.4, -0.3]],
   make: [[-24, 16, 23], [0.6, 2.0, 0]],
@@ -1076,6 +1081,7 @@ function moveCamera(force = false) {
   const key = camFor(state.scene, state.step);
   if (!force && key === camKey) return;
   camKey = key;
+  controls.maxPolarAngle = key === 'night' ? Math.PI * 0.545 : Math.PI * 0.495;   // 밤 시점은 달을 올려다봄
   const [p, t] = key === 'joint' ? jointCam() : CAM[key];
   flyTo(p, t, key === 'joint' ? 1.8 : 1.6);
 }
@@ -1250,11 +1256,13 @@ const PRESETS = [
 ];
 if (CONFIG.style !== 'real') PRESETS.unshift({ id: 'model', name: '모형 흰색', color: '#efefec', rough: 0.92, metal: 0, refl: 0.8, note: '재료 대신 형태만' });
 $('#matList').innerHTML = PRESETS.map((p, i) => `<label><input type="radio" name="mat" value="${i}" ${i === 0 ? 'checked' : ''}><span>${p.name}<span class="small" style="display:block">${p.kg ? `${p.kg} kg/m², 판 전체 약 ${(p.kg * PLATE_AREA / 1000).toFixed(1)} t, ` : ''}반사 ${Math.round(p.refl * 100)}%</span><span class="small note">${p.note}</span></span><span class="bar"><i style="width:${p.refl * 100}%"></i></span></label>`).join('');
-$$('#matList input').forEach((r) => r.addEventListener('change', () => {
-  const p = PRESETS[+r.value];
+function setPreset(i) {
+  const p = PRESETS[i]; if (!p) return;
   MAT.plate.color.set(p.color); MAT.plate.roughness = p.rough; MAT.plate.metalness = p.metal;
+  const r = $(`#matList input[value="${i}"]`); if (r) r.checked = true;
   setSun(state.scene === 1 ? +$('#sunHour').value : 15.5);
-}));
+}
+$$('#matList input').forEach((r) => r.addEventListener('change', () => setPreset(+r.value)));
 
 // ------------------------------------------------------------------ 재료 카드 (실제 건축 재료)
 const OPEN_RATIO = (() => { const t = TYPES.win_perf || {}, [L, W] = t.size || [1.2, 0.3], [nx, ny, r] = t.holes || [16, 4, 0.022]; return nx * ny * Math.PI * r * r / (L * W); })();
@@ -1304,6 +1312,12 @@ function showMember(id) {
   card.hidden = false;
   $('#matAll').addEventListener('click', () => showMember(memberFilter));
   applyMemberFilter();
+}
+function clearMemberFilter() {           // 5장면을 떠날 때: 선택 해제, 모든 부재 다시 보이기
+  memberFilter = null;
+  $$('#countTable tr[data-id]').forEach((tr) => tr.classList.remove('sel'));
+  $('#matCard').hidden = true;
+  for (const m of Object.values(IM)) m.visible = true;
 }
 function applyMemberFilter() {
   if (state.scene !== 4) return;
@@ -1390,6 +1404,7 @@ function setExplode(v) {
 
 function enter(si, st, ps, pst) {
   const run = ++runId;
+  if (si !== 4 && ps === 4) { clearMemberFilter(); setPreset(0); }   // 5장면에서 고른 부재·재료는 다른 장면에 남기지 않음
   // 기본값 (장면마다 같은 것을 같은 방식으로)
   setPlateMode(si === 1 && st === 0 ? 'data' : 'material');
   setWindows(!(si === 1 && st === 0));
@@ -1411,7 +1426,7 @@ function enter(si, st, ps, pst) {
   if (!(si === 1 && st === 1)) { stopSweep(); state.extView = false; }
   if (si === 1 && st === 0 && state.night) { const r = $('#sunHour'); r.value = 13; r.style.setProperty('--p', (13 / 24 * 100) + '%'); setSun(13); }
   if (si !== 1 && kindsLive.some((k, i) => k !== kinds[i])) setThresholds(thr[0], thr[1], true);
-  if (si !== 4 && memberFilter) showMember(memberFilter);          // 표 선택 해제
+
   if (si !== ps) walk.dragged = false;
   if (!walk.dragged && si !== 0 && !(si === 4 && st === 3)) { person.position.copy(HOME); person.rotation.y = Math.PI; }
   if (!walk.dragged && (si === 0 || (si === 4 && st === 3))) walk.x = clamp(person.position.x, -10, 10);
@@ -1504,6 +1519,13 @@ function setJoint(on, delay = 0) {
 }
 $('#jointBtn').addEventListener('click', () => { const on = !state.joint; if (on && state.explode) { animateExplode(0, 0.8); setJoint(on, 850); } else setJoint(on); });
 
+// 실사 렌더 이미지 (assets/render.jpg 가 있으면 끝맺음 장면에서 보기 버튼)
+const renderImg = new Image();
+renderImg.addEventListener('load', () => { $('#renderBtn').hidden = false; $('#renderView img').src = renderImg.src; });
+renderImg.src = './assets/render.jpg';
+$('#renderBtn').addEventListener('click', () => $('#renderView').classList.add('on'));
+$('#renderView').addEventListener('click', (e) => e.currentTarget.classList.remove('on'));
+
 // GH 캡처 이미지
 const ghImg = $('#ghImg');
 ghImg.addEventListener('load', () => { ghImg.hidden = false; $('#ghEmpty').hidden = true; });
@@ -1553,9 +1575,9 @@ const glowTex = (inner, outer) => {
   g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 };
-const moonDisc = new THREE.Mesh(new THREE.SphereGeometry(2.2, 24, 16), new THREE.MeshBasicMaterial({ color: '#f4f1e4', fog: false }));
+const moonDisc = new THREE.Mesh(new THREE.SphereGeometry(3.1, 24, 16), new THREE.MeshBasicMaterial({ color: '#f4f1e4', fog: false, toneMapped: false }));
 const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('rgba(220,228,255,0.55)', 'rgba(220,228,255,0)'), fog: false, depthWrite: false, blending: THREE.AdditiveBlending }));
-moonGlow.scale.setScalar(16); moonDisc.add(moonGlow);
+moonGlow.scale.setScalar(22); moonDisc.add(moonGlow);
 moonDisc.visible = false; scene.add(moonDisc);
 const stars = (() => {
   let sd = 7; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
@@ -1580,6 +1602,7 @@ function applySky(f, moonW, malt) {
   const was = state.night; state.night = f > 0.5;
   document.body.classList.toggle('night', state.night);
   scene.background.copy(SKY.dayBg).lerp(SKY.nightBg, f); scene.fog.color.copy(scene.background);
+  if (typeof updateSky === 'function') updateSky();
   ground.material.color.copy(SKY.dayGround).lerp(SKY.nightGround, f);
   const L = baseLight();
   hemi.intensity = L.hemi * (1 - f) + 0.09 * f;
@@ -1594,7 +1617,7 @@ function applySky(f, moonW, malt) {
   moon.position.copy(moonW).multiplyScalar(40).add(moon.target.position);
   moon.intensity = mUp ? 0.7 * clamp(Math.sin(malt) * 3, 0.25, 1) * f : 0;
   moon.visible = mUp && f > 0.02; moon.castShadow = moon.visible;
-  moonDisc.position.copy(moonW).multiplyScalar(120); moonDisc.visible = mUp && f > 0.15;
+  moonDisc.visible = mUp && f > 0.15;
   moonGlow.material.opacity = f;
   $$('#dayNight button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.night === '1') === state.night)));
   if (was !== state.night && state.scene === 1 && state.step === 1) { camKey = null; moveCamera(); }
@@ -1612,6 +1635,91 @@ if (CONFIG.night) {
   box.innerHTML = '<button type="button" data-night="0" aria-pressed="true">낮 13:00</button><button type="button" data-night="1" aria-pressed="false">밤 21:30</button>';
   $('.scene[data-scene="1"] .step[data-step="1"] h3').after(box);
   box.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || state.scene !== 1) return; state.extView = false; animateHour(b.dataset.night === '1' ? 21.5 : 13); });
+}
+
+// ------------------------------------------------------------------ 하늘: 그러데이션 돔, 해, 눈부심 (공원이 보이는 장면)
+const skyDome = new THREE.Mesh(new THREE.SphereGeometry(230, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color('#fff2d8') }, glow: { value: 0 } },
+  vertexShader: 'varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform vec3 top; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float glow; varying vec3 vDir;
+    void main() {
+      vec3 d = normalize(vDir); float h = max(d.y, 0.0);
+      vec3 c = mix(hor, top, pow(h, 0.55));
+      float s = max(dot(d, sunDir), 0.0);
+      c += sunCol * (pow(s, 48.0) * 0.9 + pow(s, 6.0) * 0.18) * glow;
+      gl_FragColor = vec4(c, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+}));
+skyDome.renderOrder = -10; skyDome.visible = false; scene.add(skyDome);
+const SKYCOL = { dayTop: new THREE.Color('#9fb9d4'), dayHor: new THREE.Color('#dfe3e1'), duskTop: new THREE.Color('#58698a'), duskHor: new THREE.Color('#e9b98f'), nightTop: new THREE.Color('#05080e'), nightHor: new THREE.Color('#111824') };
+const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(3.6, 24, 16), new THREE.MeshBasicMaterial({ color: '#fffbef', fog: false, toneMapped: false }));
+const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex('rgba(255,244,214,0.95)', 'rgba(255,236,190,0)'), fog: false, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+sunGlow.scale.setScalar(46); sunDisc.add(sunGlow);
+sunDisc.visible = false; scene.add(sunDisc);
+function updateSky() {
+  const on = park.visible;
+  skyDome.visible = on;
+  if (!on) { sunDisc.visible = false; return; }
+  const f = SKY.f, dusk = clamp(1 - Math.abs(SUNNOW.alt * 180 / Math.PI - 2) / 10, 0, 1) * (1 - f * 0.6);   // 해 높이 -8°~12° 노을
+  const u = skyDome.material.uniforms;
+  u.top.value.copy(SKYCOL.dayTop).lerp(SKYCOL.duskTop, dusk * 0.6).lerp(SKYCOL.nightTop, f);
+  u.hor.value.copy(SKYCOL.dayHor).lerp(SKYCOL.duskHor, dusk * 0.7).lerp(SKYCOL.nightHor, f);
+  u.sunDir.value.copy(SUNNOW.w); u.glow.value = SUNNOW.alt > -0.05 ? 1 - f : 0;
+  scene.fog.color.copy(u.hor.value); scene.background.copy(u.hor.value);
+  sunDisc.visible = SUNNOW.alt > -0.02;
+}
+// 해와 달, 별은 카메라를 따라다님 (아무리 걸어도 같은 방향)
+function followSky() {
+  const c = rcam.position;
+  skyDome.position.copy(c);
+  sunDisc.position.copy(c).addScaledVector(SUNNOW.w, 180);
+  moonDisc.position.copy(c).addScaledVector(SUNNOW.mw, 175);
+  stars.position.copy(c);
+}
+// 눈부심: 해(또는 달)를 바라보는데 가리는 것이 없으면 화면이 하얗게 번짐. 파빌리온 안에서는 판이 가려 사라짐
+const glareEl = $('#glare');
+const glare = { g: 0, vis: 1, frame: 0, moon: false };
+const glareRay = new THREE.Raycaster();
+const _fw = new THREE.Vector3(), _gv = new THREE.Vector3(), _ga = new THREE.Vector3(), _gb = new THREE.Vector3();
+function lightVisibility(L) {
+  const occ = Object.keys(IM).filter((k) => k.startsWith('plate_') || k === 'win_solid' || k === 'win_perf').map((k) => IM[k]).filter((m) => m.visible).concat(parkOccluders);
+  _ga.set(0, 1, 0).cross(L); if (_ga.lengthSq() < 1e-6) _ga.set(1, 0, 0); _ga.normalize(); _gb.copy(L).cross(_ga).normalize();
+  const offs = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+  let free = 0;
+  for (const [a, b] of offs) {
+    _gv.copy(L).addScaledVector(_ga, a * 0.008).addScaledVector(_gb, b * 0.008).normalize();
+    glareRay.set(rcam.position, _gv); glareRay.far = 170;
+    if (!glareRay.intersectObjects(occ, false).length) free++;
+  }
+  return free / offs.length;
+}
+function updateGlare(dt) {
+  let target = 0, L = null;
+  const sunUp = SUNNOW.alt > 0.01, moonUp = SUNNOW.malt > 0.02 && SKY.f > 0.5;
+  if (park.visible && (sunUp || moonUp) && !rcam.isOrthographicCamera) {
+    L = sunUp ? SUNNOW.w : SUNNOW.mw; glare.moon = !sunUp;
+    _fw.set(0, 0, -1).applyQuaternion(rcam.quaternion);
+    const facing = _fw.dot(L), base = clamp((facing - 0.45) / 0.53, 0, 1);
+    if (base > 0) {
+      if (glare.frame++ % 3 === 0) glare.vis = lightVisibility(L);
+      const strength = sunUp ? clamp(Math.sin(SUNNOW.alt) * 2.5, 0.45, 1) : 0.35;
+      target = strength * Math.pow(base, 1.6) * glare.vis * 0.85;
+    }
+  }
+  glare.g += (target - glare.g) * (1 - Math.exp(-dt * (target > glare.g ? 7 : 4)));   // 눈이 적응하는 속도
+  const g = glare.g;
+  if (g < 0.003) { if (glareEl.style.opacity !== '0') glareEl.style.opacity = 0; renderer.toneMappingExposure = BASE_EXPOSURE; return; }
+  _gv.copy(rcam.position).addScaledVector(L || SUNNOW.w, 100).project(rcam);
+  const x = (_gv.x + 1) / 2 * 100, y = (1 - _gv.y) / 2 * 100;
+  glareEl.classList.toggle('moon', glare.moon);
+  glareEl.style.opacity = g.toFixed(3);
+  glareEl.style.setProperty('--gx', x.toFixed(1) + '%'); glareEl.style.setProperty('--gy', y.toFixed(1) + '%');
+  glareEl.style.setProperty('--gw', (0.15 + 0.45 * g).toFixed(3));
+  $$('.ghost', glareEl).forEach((el, k) => { const t = [0.55, 1.25, 1.7][k]; el.style.left = (x + (50 - x) * t * 2) + '%'; el.style.top = (y + (50 - y) * t * 2) + '%'; });
+  renderer.toneMappingExposure = BASE_EXPOSURE * (1 + (glare.moon ? 0.3 : 0.7) * g);
 }
 
 // ------------------------------------------------------------------ 원근 / 평행 전환
@@ -1665,7 +1773,9 @@ renderer.setAnimationLoop((now) => {
   updatePerson(pdt);
   updatePov(pdt);
   syncCams();
+  followSky();
+  updateGlare(pdt);
   updateTags();
   if (composer) composer.render(); else renderer.render(scene, rcam);
 });
-window.__pav = { state, go, rig, applyPose, setExplode, camera, controls, person, lpDots: () => (loadPath.group.visible ? lpDots.count : -1), screenOf: (v) => { const p = v.clone().project(rcam); return [(p.x + 1) / 2 * innerWidth, (1 - p.y) / 2 * innerHeight]; } };
+window.__pav = { state, go, rig, applyPose, setExplode, camera, controls, person, enterPov, pov, walk, SUNNOW, glare, IM, lpDots: () => (loadPath.group.visible ? lpDots.count : -1), screenOf: (v) => { const p = v.clone().project(rcam); return [(p.x + 1) / 2 * innerWidth, (1 - p.y) / 2 * innerHeight]; } };

@@ -46,6 +46,19 @@ canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: bloc
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
 
+/* 눈부심 */
+#glare { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0; mix-blend-mode: screen; --gx: 50%; --gy: 30%; --gw: .5; }
+#glare .veil { position: absolute; inset: 0; background: radial-gradient(circle at var(--gx) var(--gy), rgba(255,252,240,1) 0, rgba(255,246,222,.92) 5%, rgba(255,238,205,.45) 20%, rgba(255,236,200,0) 52%); }
+#glare .wash { position: absolute; inset: 0; background: rgba(255,248,234,.6); opacity: var(--gw); }
+#glare .ghost { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(200,225,255,.4), rgba(200,225,255,0) 70%); }
+#glare.moon .veil { background: radial-gradient(circle at var(--gx) var(--gy), rgba(225,232,255,.95) 0, rgba(205,215,250,.5) 6%, rgba(190,205,245,.15) 20%, rgba(190,205,245,0) 45%); }
+#glare.moon .wash { background: rgba(200,212,245,.25); }
+#renderView { position: fixed; inset: 0; z-index: 6; background: rgba(12,16,22,.92); display: none; place-items: center; padding: 28px; cursor: zoom-out; }
+#renderView.on { display: grid; }
+#renderView figure { margin: 0; max-width: 100%; max-height: 100%; }
+#renderView img { max-width: 100%; max-height: calc(100vh - 90px); display: block; }
+#renderView figcaption { color: #c9d0d8; font-size: 13px; margin-top: 8px; }
+
 /* 데이터 규칙 (해 많이 -> 막는다) */
 .sunrule { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
 .sunrule li { display: grid; grid-template-columns: 30px 1fr 16px 38px auto; align-items: center; gap: 8px; padding: 7px 4px; font-size: 14px; transition: background .25s; }
@@ -55,7 +68,7 @@ button, input, select { font: inherit; color: inherit; }
 .sunrule li .ar { color: var(--ink-3); text-align: center; }
 .sunrule li.now { background: rgba(39,71,199,.12); }
 .sunrule svg { display: block; }
-#povBar { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 7px 16px; font-size: 13px; display: flex; gap: 16px; z-index: 4; }
+#povBar { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 7px 16px; font-size: 13px; display: flex; gap: 16px; z-index: 4; white-space: nowrap; }
 #povBar[hidden] { display: none; }
 body.pov #card, body.pov #side, body.pov #title { opacity: .2; transition: opacity .4s; }
 body.pov #card:hover, body.pov #side:hover { opacity: 1; }
@@ -370,6 +383,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
     </div>
     <div class="step" data-step="3">
       <p class="small">처음 문장으로 돌아갑니다.</p>
+      <div class="btns"><button type="button" class="btn" id="renderBtn" hidden>실사 렌더 보기</button></div>
     </div>
   </article>
 </main>
@@ -435,11 +449,13 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   <button type="button" id="next" aria-label="다음">›</button>
 </div>
 <p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌기, 더블클릭 시선</span><span>N 노트</span><span>F 전체화면</span></p>
+<div id="glare" aria-hidden="true"><div class="veil"></div><div class="wash"></div><div class="ghost" style="width:9vmin;height:9vmin"></div><div class="ghost" style="width:5vmin;height:5vmin"></div><div class="ghost" style="width:14vmin;height:14vmin"></div></div>
 <div id="labels"></div>
-<div id="povBar" hidden><b>사람 시선</b><span>W A S D, 방향키로 걷기</span><span>Shift 빨리</span><span>끌어서 둘러보기</span><span>더블클릭이나 Esc 로 돌아가기</span></div>
+<div id="povBar" hidden><b>사람 시선</b><span>WASD, 방향키 걷기</span><span>Shift 빨리</span><span>끌어서 둘러보기</span><span>Esc 돌아가기</span></div>
 <div id="closing"><p id="closingTxt"></p></div>
 <div id="notes" role="note"></div>
 <div id="lightbox"><img alt=""></div>
+<div id="renderView"><figure><img alt="파빌리온 실사 렌더"><figcaption>실사 렌더 (라이노). 누르면 닫힙니다.</figcaption></figure></div>
 <div id="msg"><p></p></div>
 
 <script type="module" src="./main.js"></script>
