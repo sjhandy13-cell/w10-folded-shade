@@ -89,7 +89,7 @@ canvas#c.grab { cursor: grabbing; }
 #title p { margin: 10px 0 0; font-size: 17px; line-height: 1.6; color: var(--ink); max-width: 34em; text-wrap: balance; }
 body.night #title { color: #e4e8ec; }
 body.night #title p { color: #c3cad2; }
-body.night #nav button { color: #8b95a0; } body.night #nav button.on, body.night #timer { color: #e4e8ec; }
+body.night #nav button { color: #8b95a0; } body.night #nav button.on { color: #e4e8ec; }
 #title .ref { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
 
 /* 장면 카드 (왼쪽) */
@@ -201,8 +201,6 @@ table.count .mat { display: block; color: var(--ink-2); font-size: 12px; }
 #prev, #next { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ink); background: var(--veil); cursor: pointer; font-size: 16px; }
 #camSeg { margin: 0 10px 0 0; background: var(--veil); }
 #camSeg button { padding: 5px 10px; font-size: 12px; }
-#timer { font-size: 13px; color: var(--ink-2); margin-right: 8px; min-width: 88px; text-align: right; }
-#timer.late { color: var(--signal); font-weight: 500; }
 
 /* 3D 위 라벨 */
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
@@ -241,7 +239,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   .sidebox { border-right: 0; border-left: 2px solid var(--ink); font-size: 13px; padding: 10px 12px; }
   #nav { left: 0; right: 0; bottom: 0; transform: none; height: 56px; padding: 0 12px; background: var(--paper); border-top: 1px solid var(--hair); }
   #nav button { padding: 6px 3px; } #nav .label, #nav .sub { display: none; } #nav .link { width: 8px; }
-  #arrows { bottom: 10px; right: 12px; } #timer, #help { display: none; }
+  #arrows { bottom: 10px; right: 12px; } #help { display: none; }
   #closing p { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -290,10 +288,10 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
       <h3>안으로 드는 빛</h3>
       <div class="ctl">
         <label class="row" for="sunHour"><span>서울, 7월 21일</span><output id="sunOut">10:00</output></label>
-        <input type="range" id="sunHour" min="5.5" max="19.5" step="0.25" value="10">
+        <input type="range" id="sunHour" min="0" max="24" step="0.25" value="10">
       </div>
       <p class="small" id="sunInfo"></p>
-      <p class="small">열린 창과 타공판을 지난 빛이 안쪽 바닥에 얼룩을 만들고, 막힌 창은 그늘을 만듭니다.</p>
+      <p class="small">시간을 움직이면 해가 돌며 안쪽 바닥의 빛 얼룩이 옮겨 갑니다. 해가 지면 달과 가로등, 볼트 안 등불이 켜집니다.</p>
     </div>
   </article>
 
@@ -433,13 +431,12 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
 <nav id="nav" aria-label="장면"></nav>
 <div id="arrows">
   <div class="seg" id="camSeg" role="group" aria-label="투영" title="O 키로도 바꿉니다. 안쪽 시점은 늘 원근"><button type="button" data-cam="persp" aria-pressed="true">원근</button><button type="button" data-cam="ortho" aria-pressed="false">평행</button></div>
-  <span id="timer" title="T 로 초기화">0:00 / 3:45</span>
   <button type="button" id="prev" aria-label="이전">‹</button>
   <button type="button" id="next" aria-label="다음">›</button>
 </div>
 <p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌기, 더블클릭 시선</span><span>N 노트</span><span>F 전체화면</span></p>
 <div id="labels"></div>
-<div id="povBar" hidden><b>사람 시선</b><span>눈높이 1.6 m</span><span>끌어서 둘러보기</span><span>더블클릭이나 Esc 로 돌아가기</span></div>
+<div id="povBar" hidden><b>사람 시선</b><span>W A S D, 방향키로 걷기</span><span>Shift 빨리</span><span>끌어서 둘러보기</span><span>더블클릭이나 Esc 로 돌아가기</span></div>
 <div id="closing"><p id="closingTxt"></p></div>
 <div id="notes" role="note"></div>
 <div id="lightbox"><img alt=""></div>
