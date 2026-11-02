@@ -46,6 +46,23 @@ canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: bloc
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
 
+/* 데이터 규칙 (해 많이 -> 막는다) */
+.sunrule { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.sunrule li { display: grid; grid-template-columns: 30px 1fr 16px 38px auto; align-items: center; gap: 8px; padding: 7px 4px; font-size: 14px; transition: background .25s; }
+.sunrule li + li { border-top: 1px solid var(--hair); }
+.sunrule li .verb { font-size: 16px; font-weight: 600; }
+.sunrule li .cnt { color: var(--ink-2); font-size: 13px; text-align: right; min-width: 34px; }
+.sunrule li .ar { color: var(--ink-3); text-align: center; }
+.sunrule li.now { background: rgba(39,71,199,.12); }
+.sunrule svg { display: block; }
+#povBar { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 7px 16px; font-size: 13px; display: flex; gap: 16px; z-index: 4; }
+#povBar[hidden] { display: none; }
+body.pov #card, body.pov #side, body.pov #title { opacity: .2; transition: opacity .4s; }
+body.pov #card:hover, body.pov #side:hover { opacity: 1; }
+.tag .small { color: var(--ink-2); margin-left: 4px; }
+.tag.kindtag .pin { width: 12px; height: 12px; border: 1px solid var(--ink); border-radius: 2px; }
+.tag.kindtag .txt { font-weight: 500; }
+
 /* 재료 카드, 경계값, 표 선택 */
 .matcard { margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,.5); border: 1px solid var(--hair); font-size: 13px; }
 .matcard h4 { margin: 0; font-size: 15px; font-weight: 600; }
@@ -188,7 +205,8 @@ table.count .mat { display: block; color: var(--ink-2); font-size: 12px; }
 #timer.late { color: var(--signal); font-weight: 500; }
 
 /* 3D 위 라벨 */
-#labels { position: fixed; inset: 0; pointer-events: none; }
+#labels { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+#card, #side, #nav, #arrows, #title { z-index: 2; }
 .tag { position: absolute; transform: translate(-6px, -50%); display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; transition: opacity .3s; }
 .tag .pin { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--signal); color: #fff; font-size: 12px; display: grid; place-items: center; box-shadow: 0 0 0 4px rgba(212,66,44,.22); }
 .tag.fix .pin { background: var(--cobalt); box-shadow: 0 0 0 4px rgba(39,71,199,.2); }
@@ -260,6 +278,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   <article class="scene" data-scene="1">
     <h2><span class="no">2</span>데이터</h2>
     <p class="say">여름 해를 많이 받는 판은 막고, 적게 받는 판은 엽니다.</p>
+    <ol class="sunrule" id="sunRule" aria-label="일사에 따른 창 규칙"></ol>
     <div class="step keep" data-step="0">
       <div class="seg" role="group" aria-label="보기">
         <button type="button" data-goto="1,0" aria-pressed="true">일사 값</button>
@@ -363,6 +382,11 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
     <div class="ramp" id="rampBar"></div>
     <div class="ticks" id="rampTicks"></div>
     <p class="small" id="dataSrc"></p>
+    <div id="barHelp">
+      <h3 style="margin-top:6px">막대 읽는 법</h3>
+      <svg class="strip" id="barSvg" viewBox="0 0 300 118" aria-label="판에서 솟은 막대의 길이가 일사량이라는 설명 그림"></svg>
+      <p class="small" id="barTxt"></p>
+    </div>
     <div id="ruleBox" hidden>
       <h3 style="margin-top:8px">값이 바꾼 것: 창 모듈</h3>
       <svg class="strip" id="strip" viewBox="0 0 300 64" aria-label="판 150장을 일사량 순서로 놓고 창 종류로 나눈 그림"></svg>
@@ -413,8 +437,9 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   <button type="button" id="prev" aria-label="이전">‹</button>
   <button type="button" id="next" aria-label="다음">›</button>
 </div>
-<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌어서 옮기기</span><span>N 노트</span><span>F 전체화면</span></p>
+<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌기, 더블클릭 시선</span><span>N 노트</span><span>F 전체화면</span></p>
 <div id="labels"></div>
+<div id="povBar" hidden><b>사람 시선</b><span>눈높이 1.6 m</span><span>끌어서 둘러보기</span><span>더블클릭이나 Esc 로 돌아가기</span></div>
 <div id="closing"><p id="closingTxt"></p></div>
 <div id="notes" role="note"></div>
 <div id="lightbox"><img alt=""></div>
