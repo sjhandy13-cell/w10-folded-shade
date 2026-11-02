@@ -46,6 +46,26 @@ canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: bloc
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
 
+/* 재료 카드, 경계값, 표 선택 */
+.matcard { margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,.5); border: 1px solid var(--hair); font-size: 13px; }
+.matcard h4 { margin: 0; font-size: 15px; font-weight: 600; }
+.matcard .fam { color: var(--ink-2); font-size: 12px; margin-bottom: 4px; }
+.matcard dl { margin: 6px 0 0; display: grid; grid-template-columns: 44px 1fr; gap: 3px 8px; }
+.matcard dt { color: var(--ink-2); }
+.matcard dd { margin: 0; }
+.matcard .btn { margin-top: 8px; }
+table.count tr[data-id] { cursor: pointer; }
+table.count tr[data-id]:hover td { background: rgba(39,71,199,.06); }
+table.count tr[data-id].sel td { background: rgba(39,71,199,.12); }
+.matlist .note { display: none; margin-top: 2px; }
+.matlist label:has(input:checked) .note { display: block; }
+#ruleBox:not([hidden]) ~ * { }
+.sidebox[data-for="1"]:has(#ruleBox:not([hidden])) #dataSrc { display: none; }
+.sidebox[data-for="1"]:has(#ruleBox:not([hidden])) .ticks { height: 22px; }
+.thr { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--hair); }
+#ruleFormula { margin: 8px 0 0; }
+canvas#c.grab { cursor: grabbing; }
+
 /* 이름과 한 문장 */
 #title { position: fixed; left: var(--gap); top: 20px; max-width: min(560px, calc(100vw - 2 * var(--gap))); pointer-events: none; }
 #title h1 { margin: 0; font-weight: 300; font-size: 44px; line-height: 1.08; letter-spacing: -.015em; }
@@ -245,7 +265,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
         <button type="button" data-goto="1,0" aria-pressed="true">일사 값</button>
         <button type="button" data-goto="1,1" aria-pressed="false">값이 바꾼 창</button>
       </div>
-      <p class="small" id="dataLead">판마다 Ladybug 로 계산한 6~8월 누적 일사량입니다. 진할수록 해를 많이 받습니다.</p>
+      <p class="small" id="dataLead">판마다 Ladybug 로 계산한 6~8월 누적 일사량입니다. 막대가 길고 색이 진할수록 해를 많이 받습니다.</p>
     </div>
     <div class="step" data-step="1">
       <h3>안으로 드는 빛</h3>
@@ -304,7 +324,9 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   <article class="scene" data-scene="4">
     <h2><span class="no">5</span>재료·조인트·생산</h2>
     <p class="say">판 5종과 힌지로 땅에서 평평하게 조립하고, 접어 올려 세웁니다.</p>
+    <section class="matcard" id="matCard" hidden></section>
     <div class="step" data-step="0">
+      <p class="small">오른쪽 표에서 부재를 누르면 그 부재만 보이고 실제 재료 설명이 나옵니다.</p>
       <div class="ctl">
         <label class="row" for="explode"><span>부재 펼쳐 보기</span><output id="explodeOut">0%</output></label>
         <input type="range" id="explode" min="0" max="100" step="1" value="0">
@@ -312,7 +334,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
     </div>
     <div class="step" data-step="1">
       <div class="btns"><button type="button" class="btn" id="jointBtn" aria-pressed="false">조인트 확대</button></div>
-      <h3 style="margin-top:12px">판 재료와 빛 반사</h3>
+      <h3 style="margin-top:12px">판 재료 비교 (실제 규격)</h3>
       <div class="matlist" id="matList"></div>
     </div>
     <div class="step" data-step="2">
@@ -344,7 +366,14 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
     <div id="ruleBox" hidden>
       <h3 style="margin-top:8px">값이 바꾼 것: 창 모듈</h3>
       <svg class="strip" id="strip" viewBox="0 0 300 64" aria-label="판 150장을 일사량 순서로 놓고 창 종류로 나눈 그림"></svg>
+      <p class="small" id="ruleFormula"></p>
       <ul class="rule" id="ruleList"></ul>
+      <div class="thr">
+        <div class="ctl"><label class="row" for="thr1"><span>이 값부터 타공</span><output id="thr1Out"></output></label><input type="range" id="thr1"></div>
+        <div class="ctl"><label class="row" for="thr2"><span>이 값부터 막힘</span><output id="thr2Out"></output></label><input type="range" id="thr2"></div>
+        <div class="btns"><button type="button" class="btn" id="sweepBtn">배치 다시 보기</button><button type="button" class="btn" id="thrReset" hidden>GH 값으로 되돌리기</button></div>
+        <p class="small" id="thrNote"></p>
+      </div>
     </div>
   </section>
   <section class="sidebox" data-for="2">
@@ -384,7 +413,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   <button type="button" id="prev" aria-label="이전">‹</button>
   <button type="button" id="next" aria-label="다음">›</button>
 </div>
-<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>N 노트</span><span>F 전체화면</span></p>
+<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌어서 옮기기</span><span>N 노트</span><span>F 전체화면</span></p>
 <div id="labels"></div>
 <div id="closing"><p id="closingTxt"></p></div>
 <div id="notes" role="note"></div>

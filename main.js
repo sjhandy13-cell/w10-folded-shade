@@ -100,11 +100,15 @@ const pIndex = (b, j) => (b - 1) * n + j;
 const bandName = (b) => ((TYPES['plate_' + b] || {}).name || '판-' + b).replace(/^판-\d+\s*/, '');
 let TOP_BAND = '', topMean = -Infinity;
 for (let b = 1; b <= N; b++) { let m = 0; for (let j = 0; j < n; j++) m += rads[pIndex(b, j)] / n; if (m > topMean) { topMean = m; TOP_BAND = bandName(b); } }
-const BAND_KIND = [[], [], []];          // 창 종류마다 그 종류가 가장 많은 띠 이름
-for (let b = 1; b <= N; b++) {
-  const c = [0, 0, 0]; for (let j = 0; j < n; j++) c[kinds[pIndex(b, j)]]++;
-  BAND_KIND[c.indexOf(Math.max(...c))].push(bandName(b));
+function bandKinds(arr) {                // 창 종류마다 그 종류가 가장 많은 띠 이름
+  const out = [[], [], []];
+  for (let b = 1; b <= N; b++) {
+    const c = [0, 0, 0]; for (let j = 0; j < n; j++) c[arr[pIndex(b, j)]]++;
+    out[c.indexOf(Math.max(...c))].push(bandName(b));
+  }
+  return out;
 }
+const BAND_KIND = bandKinds(kinds);
 
 // 접힘선마다 양쪽 판 번호 (폭발도·선 위치 계산용)
 for (const c of rig.creases) {
@@ -146,6 +150,7 @@ controls.autoRotateSpeed = 0.7;
 const ocam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
 const O_H = 20, O_D = 120;
 const PERSP_ONLY = new Set(['data1', 'joint']);
+const FOG = { park: false };
 let rcam = camera;
 
 // 주름 그늘 (GTAO)
@@ -178,7 +183,7 @@ function syncCams() {
   }
   setRenderCam(useO ? ocam : camera);
   const extra = useO ? O_D - d : 0;
-  scene.fog.near = 34 + extra; scene.fog.far = 78 + extra;
+  scene.fog.near = (FOG.park ? 48 : 34) + extra; scene.fog.far = (FOG.park ? 120 : 78) + extra;
 }
 
 const HEMI = CONFIG.style === 'line' ? 1.35 : CONFIG.shadow === 'sharp' ? 0.6 : 0.95;
@@ -284,13 +289,19 @@ for (let b = 1; b <= N; b++) addIM('plate_' + b, plateGeom(b), MAT.plate, n);
 const KIND_ID = ['win_open', 'win_perf', 'win_solid'];
 const kindCount = [0, 0, 0];
 const plateIdx = [], winRef = [];
-for (let i = 0; i < NP; i++) {
-  plateIdx.push(panels[i].j);
-  const k = kinds[i]; winRef.push({ id: KIND_ID[k], idx: kindCount[k]++ });
+const kindsLive = kinds.slice();                 // 데이터 장면에서 경계값을 움직이면 바뀜 (GH 값은 kinds)
+const winShown = new Array(NP).fill(true);       // 배치 애니메이션용
+for (let i = 0; i < NP; i++) plateIdx.push(panels[i].j);
+function assignWindows() {
+  kindCount.fill(0);
+  for (let i = 0; i < NP; i++) { const k = kindsLive[i]; winRef[i] = { id: KIND_ID[k], idx: kindCount[k]++ }; }
+  KIND_ID.forEach((id, k) => { if (IM[id]) IM[id].count = kindCount[k]; });
 }
-addIM('win_open', box(WS[0] - 0.01, WS[1] - 0.01, WS[2]), MAT.open, kindCount[0], false);
-addIM('win_perf', perfGeom(), MAT.perf, kindCount[1]);
-addIM('win_solid', box(WS[0] - 0.01, WS[1] - 0.01, (TYPES.win_solid && TYPES.win_solid.size[2]) || 0.006), MAT.solid, kindCount[2]);
+assignWindows();
+addIM('win_open', box(WS[0] - 0.01, WS[1] - 0.01, WS[2]), MAT.open, NP, false);
+addIM('win_perf', perfGeom(), MAT.perf, NP);
+addIM('win_solid', box(WS[0] - 0.01, WS[1] - 0.01, (TYPES.win_solid && TYPES.win_solid.size[2]) || 0.006), MAT.solid, NP);
+KIND_ID.forEach((id, k) => { IM[id].count = kindCount[k]; });
 const H1 = rig.hinges(rig.B1);
 addIM('hinge_gen', pinGeom('hinge_gen', 0.018, 0.16), MAT.hinge_gen, H1.gen.length);
 addIM('hinge_zig', pinGeom('hinge_zig', 0.026, 0.22), MAT.hinge_zig, H1.zig.length);
@@ -321,6 +332,7 @@ function explodeOffsets(B, frames, e) {
   return frames.map((f) => V.add(V.mul(dir[f.band], e * 1.2), V.mul(la, (f.j - (n - 1) / 2) * e * 0.08)));
 }
 const avgOff = (a, b) => (offs ? V.mul(V.add(offs[a], offs[b]), 0.5) : null);
+const ZERO = [0, 0, 0];
 
 function applyPose(t) {
   state.t = t;
@@ -334,7 +346,7 @@ function applyPose(t) {
     const w = winRef[i];
     let wo = V.add(f.o, V.mul(f.x, holeCx[f.band]));
     if (off) wo = V.add(wo, V.add(off, V.mul(f.n, e * 0.6)));
-    setM(IM[w.id], w.idx, wo, f.x, f.y, f.z);
+    if (winShown[i]) setM(IM[w.id], w.idx, wo, f.x, f.y, f.z); else setM(IM[w.id], w.idx, wo, ZERO, ZERO, ZERO);
   });
   const H = rig.hinges(B);
   H.gen.forEach((h, i) => setM(IM.hinge_gen, i, h.o, h.x, h.y, h.z, avgOff(h.crease.pa, h.crease.pb)));
@@ -347,6 +359,7 @@ function applyPose(t) {
   for (const m of Object.values(IM)) m.instanceMatrix.needsUpdate = true;
   updateCreaseLines();
   updateOutline();
+  updateSpikes();
   if (loadPath.group.visible) buildLoadPath();
   updateFoldReadout();
   refreshFixes();
@@ -382,6 +395,61 @@ function setHingeLook(look) {
   MAT.hinge_zig.color.set(pick('hinge_zig'));
 }
 
+// ------------------------------------------------------------------ 일사 막대 (값을 판 위에 길이로)
+const spikes = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 8).translate(0, 0.5, 0).rotateX(Math.PI / 2),
+  new THREE.MeshStandardMaterial({ roughness: 0.55 }), NP);
+spikes.visible = false; spikes.frustumCulled = false; spikes.userData.noAO = true;
+pav.add(spikes);
+{ const c = new THREE.Color(); for (let i = 0; i < NP; i++) spikes.setColorAt(i, rampColor(norm(rads[i]), c)); }
+const spikeLen = (i) => 0.15 + 1.25 * norm(rads[i]);
+function updateSpikes() {
+  if (!spikes.visible || !pose) return;
+  pose.frames.forEach((f, i) => {
+    const z = f.n, x = f.x, y = V.cross(z, x), L = spikeLen(i), o = V.add(f.o, V.mul(z, 0.02));
+    _m.set(x[0], y[0], z[0] * L, o[0], x[1], y[1], z[1] * L, o[1], x[2], y[2], z[2] * L, o[2], 0, 0, 0, 1);
+    spikes.setMatrixAt(i, _m);
+  });
+  spikes.instanceMatrix.needsUpdate = true;
+}
+const iMax = rads.indexOf(Math.max(...rads)), iMin = rads.indexOf(Math.min(...rads));
+const spikeTip = (i) => toWorld(V.add(pose.frames[i].o, V.mul(pose.frames[i].n, spikeLen(i) + 0.1)));
+
+// 배치 애니메이션: 일사가 적은 판부터 차례로 창이 들어간다
+const rankOrder = rads.map((v, i) => i).sort((a, b) => rads[a] - rads[b]);
+let sweepTw = null;
+function playSweep() {
+  if (sweepTw) tweens.delete(sweepTw);
+  winShown.fill(false); applyPose(state.t);
+  state.sweeping = true; moveCamera();
+  sweepTw = tween(3.2, (u) => {
+    const k = Math.round(u * NP);
+    for (let r = 0; r < NP; r++) winShown[rankOrder[r]] = r < k;
+    applyPose(state.t); drawStripCursor(u);
+  }, () => { sweepTw = null; drawStripCursor(null); setTimeout(() => { if (state.sweeping) { state.sweeping = false; moveCamera(); } }, 600); });
+}
+function stopSweep() { if (sweepTw) { tweens.delete(sweepTw); sweepTw = null; } state.sweeping = false; winShown.fill(true); drawStripCursor(null); }
+
+// 경계값: 이 값부터 타공, 이 값부터 막힘 (GH 는 3등분 = thr)
+const thrLive = [thr[0], thr[1]];
+function setThresholds(a, b, fromGH = false) {
+  thrLive[0] = Math.min(a, b); thrLive[1] = Math.max(a, b);
+  for (let i = 0; i < NP; i++) kindsLive[i] = fromGH ? kinds[i] : rads[i] < thrLive[0] ? 0 : rads[i] < thrLive[1] ? 1 : 2;
+  assignWindows(); applyPose(state.t);
+  const same = kindsLive.every((k, i) => k === kinds[i]);
+  $('#thrReset').hidden = same;
+  $('#thrNote').textContent = same ? '지금은 GH 에서 정한 값. 움직이면 창이 바로 바뀝니다.' : 'GH 와 다른 실험 값 (화면에서만 바뀜)';
+  for (const [id, v] of [['thr1', thrLive[0]], ['thr2', thrLive[1]]]) { const r = $('#' + id); r.value = v; r.style.setProperty('--p', (norm(v) * 100) + '%'); $('#' + id + 'Out').textContent = Math.round(v) + ' kWh/m²'; }
+  drawStrip(); drawRule(); shadowDirty();
+}
+
+$('#sweepBtn').addEventListener('click', () => playSweep());
+$('#thrReset').addEventListener('click', () => setThresholds(thr[0], thr[1], true));
+for (const id of ['thr1', 'thr2']) {
+  const r = $('#' + id);
+  r.addEventListener('input', () => { stopSweep(); setThresholds(+$('#thr1').value, +$('#thr2').value); if (!state.extView) { state.extView = true; moveCamera(); } });
+  r.addEventListener('pointerup', () => r.blur());
+}
+
 // ------------------------------------------------------------------ 해
 function sunDir(hour, day = 202) {
   const ha = THREE.MathUtils.degToRad(15 * (hour - 12) - (135 - 126.98));   // 서울 경도 보정 (KST)
@@ -403,16 +471,115 @@ function setSun(hour) {
   shadowDirty();
 }
 
-// ------------------------------------------------------------------ 사람 (1.75 m) 과 북쪽 표시
-const person = new THREE.Group();
-{
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 1.2, 4, 12), MAT.person); body.position.y = 0.77;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), MAT.person); head.position.y = 1.65;
-  for (const m of [body, head]) { m.castShadow = true; person.add(m); }
-  const a = toWorld(V.mean(rig.B1[0])), b = toWorld(V.mean(rig.B1[N]));
-  person.position.set(6.7, 0, a.z + (b.z - a.z) * 0.45);      // 동쪽 입구 앞 (단면과 키 비교)
-  scene.add(person);
+// ------------------------------------------------------------------ 사람 (1.75 m): 걷고, 끌어서 옮길 수 있음
+const ZC = (() => { const a = toWorld(V.mean(rig.B1[0])), b = toWorld(V.mean(rig.B1[N])); return a.z + (b.z - a.z) * 0.45; })();   // 볼트 안쪽 가운데 줄
+const blobMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.16, depthWrite: false });
+const blobGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
+function makeFigure(mat) {
+  const g = new THREE.Group(), limbs = {};
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.42, 4, 12), mat); torso.position.y = 1.18;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), mat); head.position.y = 1.64;
+  const legGeo = new THREE.CapsuleGeometry(0.065, 0.74, 4, 8).translate(0, -0.44, 0);
+  const armGeo = new THREE.CapsuleGeometry(0.05, 0.52, 4, 8).translate(0, -0.31, 0);
+  for (const sd of [-1, 1]) {
+    const leg = new THREE.Group(); leg.position.set(0, 0.92, sd * 0.09); leg.add(new THREE.Mesh(legGeo, mat));
+    const arm = new THREE.Group(); arm.position.set(0, 1.42, sd * 0.21); arm.add(new THREE.Mesh(armGeo, mat));
+    g.add(leg, arm); limbs[sd] = { leg, arm };
+  }
+  const blob = new THREE.Mesh(blobGeo, blobMat); blob.scale.setScalar(0.38); blob.position.y = 0.006;
+  g.add(torso, head, blob);
+  g.userData.limbs = limbs;
+  return g;
 }
+function poseFigure(g, swing) {
+  const L = g.userData.limbs;
+  L[-1].leg.rotation.z = swing; L[1].leg.rotation.z = -swing;
+  L[-1].arm.rotation.z = -swing * 0.7; L[1].arm.rotation.z = swing * 0.7;
+}
+const person = makeFigure(MAT.person);
+const HOME = new THREE.Vector3(6.7, 0, ZC);                      // 동쪽 입구 앞 (단면과 키 비교)
+person.position.copy(HOME);
+person.rotation.y = Math.PI;
+scene.add(person);
+const walk = { x: 9, dir: -1, phase: 0, dragged: false, dragging: false, moved: 0 };
+function updatePerson(dt) {
+  const auto = (state.scene === 0 || (state.scene === 4 && state.step === 3)) && !walk.dragged && !REDUCED;
+  if (auto) {                                                     // 공원 길을 따라 볼트 안을 지나 왕복
+    walk.x += walk.dir * 1.1 * dt;
+    if (walk.x < -10) walk.dir = 1; else if (walk.x > 10) walk.dir = -1;
+    person.position.set(walk.x, 0, ZC); person.rotation.y = walk.dir > 0 ? 0 : Math.PI;
+    walk.phase += dt * 6.2;
+  } else if (!walk.dragging) walk.phase *= 0.85;
+  poseFigure(person, auto || walk.dragging ? Math.sin(walk.phase) * 0.45 : 0);
+}
+// 끌어서 옮기기
+const pickRay = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), _ndc = new THREE.Vector2(), _hit = new THREE.Vector3();
+function ndc(e) { const r = canvas.getBoundingClientRect(); _ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); return _ndc; }
+canvas.addEventListener('pointerdown', (e) => {
+  pickRay.setFromCamera(ndc(e), rcam);
+  if (!pickRay.intersectObject(person, true).length) return;
+  walk.dragging = walk.dragged = true; controls.enabled = false; canvas.classList.add('grab');
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!walk.dragging) return;
+  pickRay.setFromCamera(ndc(e), rcam);
+  if (!pickRay.ray.intersectPlane(groundPlane, _hit)) return;
+  const dx = _hit.x - person.position.x, dz = _hit.z - person.position.z, d = Math.hypot(dx, dz);
+  if (d > 1e-3) { person.rotation.y = Math.atan2(-dz, dx); walk.phase += d * 3; }
+  person.position.set(clamp(_hit.x, -30, 30), 0, clamp(_hit.z, -30, 30));
+});
+const endDrag = () => { if (!walk.dragging) return; walk.dragging = false; controls.enabled = true; canvas.classList.remove('grab'); };
+canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+
+// ------------------------------------------------------------------ 공원 (1장면): 잔디, 길, 나무, 벤치, 사람들
+const park = new THREE.Group(); park.visible = false; scene.add(park);
+{
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'); const grd = g.createRadialGradient(128, 128, 30, 128, 128, 128);
+  grd.addColorStop(0, 'rgba(136,158,112,1)'); grd.addColorStop(0.72, 'rgba(136,158,112,0.95)'); grd.addColorStop(1, 'rgba(136,158,112,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const lawn = new THREE.Mesh(new THREE.CircleGeometry(58, 72).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 1, depthWrite: false }));
+  lawn.position.set(0, 0.003, ZC); lawn.receiveShadow = true; park.add(lawn);
+  const pathMat = new THREE.MeshStandardMaterial({ color: '#d6d1c5', roughness: 0.95 });
+  const main = new THREE.Mesh(new THREE.PlaneGeometry(96, 2.6).rotateX(-Math.PI / 2), pathMat);
+  main.position.set(0, 0.006, ZC); main.receiveShadow = true; park.add(main);
+  const branch = new THREE.Mesh(new THREE.PlaneGeometry(40, 2.0).rotateX(-Math.PI / 2), pathMat);
+  branch.rotation.y = -0.75; branch.position.set(14 + 13 * Math.cos(0.75), 0.005, ZC + 13 * Math.sin(0.75)); branch.receiveShadow = true; park.add(branch);
+  // 나무 (줄기 + 수관, 바닥 그늘은 원판으로)
+  const T = [];
+  while (T.length < 90) {
+    const r = 27 + rnd() * 33, a = rnd() * Math.PI * 2, x = r * Math.cos(a), z = ZC + r * Math.sin(a);   // 카메라가 도는 원(약 25 m) 바깥
+    if (Math.abs(z - ZC) < 3.4) continue;
+    const bx = x - 14, bz = z - ZC; if (bx > -2 && Math.abs(-Math.sin(0.75) * bx + Math.cos(0.75) * bz) < 2.6 && bx < 30) continue;
+    T.push({ x, z, s: 0.75 + rnd() * 0.75, k: Math.floor(rnd() * 4) });
+  }
+  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12, 0.2, 1, 6).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: '#6b5a48', roughness: 0.9 }), T.length);
+  const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true }), T.length);
+  const shade = new THREE.InstancedMesh(blobGeo, blobMat, T.length);
+  const greens = ['#7a9265', '#6a8657', '#879f6e', '#5d7850'].map((h) => new THREE.Color(h));
+  const q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
+  T.forEach((t, i) => {
+    const h = 2.0 + t.s * 1.2;
+    trunk.setMatrixAt(i, _m.compose(ps.set(t.x, 0, t.z), q.identity(), sc.set(1, h, 1)));
+    crown.setMatrixAt(i, _m.compose(ps.set(t.x, h + 1.1 * t.s, t.z), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), t.k), sc.set(1.7 * t.s, 1.9 * t.s, 1.7 * t.s)));
+    crown.setColorAt(i, greens[t.k]);
+    shade.setMatrixAt(i, _m.compose(ps.set(t.x + 0.4, 0.005, t.z + 0.3), q.identity(), sc.setScalar(1.9 * t.s)));
+  });
+  park.add(trunk, crown, shade);
+  // 벤치와 사람들
+  const benchMat = new THREE.MeshStandardMaterial({ color: '#8a7a68', roughness: 0.85 });
+  for (const [x, sd] of [[-13, 1], [-19, -1], [13, -1], [20, 1]]) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.45, 0.5), benchMat); b.position.set(x, 0.225, ZC + sd * 2.3); park.add(b);
+  }
+  const otherMat = new THREE.MeshStandardMaterial({ color: '#8d949b', roughness: 0.9 });
+  for (const [x, z, ry, sw] of [[-15, ZC - 2.9, 0.4, 0.25], [17, ZC + 4.2, 2.2, -0.3], [-24, ZC + 1.1, -1.4, 0.15]]) {
+    const f = makeFigure(otherMat); f.position.set(x, 0, z); f.rotation.y = ry; poseFigure(f, sw); park.add(f);
+  }
+}
+
 const north = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0.9), new THREE.Vector2(-0.32, -0.3), new THREE.Vector2(0, -0.1), new THREE.Vector2(0.32, -0.3)])),
   new THREE.MeshBasicMaterial({ color: tok('--ink') }));
 north.rotation.x = -Math.PI / 2; north.position.set(8.0, 0.01, -6.0);
@@ -597,6 +764,10 @@ const jointTags = [
   addTag('plain', `<span class="pin"></span><span class="txt">${(TYPES.hinge_zig || {}).name || '힌지'}: ${(TYPES.hinge_zig || {}).material || ''}</span>`, () => instWorld('hinge_zig', Math.max(JH, 0))),
   addTag('plain', `<span class="pin"></span><span class="txt">${(TYPES[winRef[JP].id] || {}).name || '창 모듈'}: ${(TYPES[winRef[JP].id] || {}).material || ''}</span>`, () => nearHinge(instWorld(winRef[JP].id, winRef[JP].idx))),
 ];
+const dataTags = [
+  addTag('plain', `<span class="pin"></span><span class="txt">가장 많이 ${Math.round(rads[iMax])} kWh/m², ${bandName(panels[iMax].b)}</span>`, () => spikeTip(iMax)),
+  addTag('plain', `<span class="pin"></span><span class="txt">가장 적게 ${Math.round(rads[iMin])} kWh/m², ${bandName(panels[iMin].b)}</span>`, () => spikeTip(iMin)),
+];
 const personTag = addTag('plain', '<span class="pin"></span><span class="txt">사람 1.75 m</span>', () => new THREE.Vector3(person.position.x, 1.95, person.position.z));
 personTag.occlude = true;
 for (const w of WEAK) w.tag.occlude = false;
@@ -667,7 +838,7 @@ function jointCam() {
 let camKey = null;
 function camFor(si, st) {
   if (si === 0 || (si === 4 && st === 3)) return 'idea';
-  if (si === 1) return st === 0 ? 'data0' : state.night ? 'night' : 'data1';
+  if (si === 1) return st === 0 || state.sweeping || state.extView ? 'data0' : state.night ? 'night' : 'data1';
   if (si === 2) return 'logic';
   if (si === 3) return 'struct';
   if (si === 4) return state.joint ? 'joint' : st === 2 ? 'logic' : 'make';
@@ -712,19 +883,10 @@ function fillSide() {
   $('#rampTicks').innerHTML = tk.map((v) => `<span style="left:${norm(v) * 100}%">${Math.round(v)}</span>`).join('');
   if (DAT.source !== 'Ladybug') $('#dataLead').textContent = `판 ${NP}장마다 GH 로 추정한 6~8월 누적 일사량입니다. 진할수록 해를 많이 받습니다.`;
   $('#dataSrc').textContent = DAT.source === 'Ladybug' ? '출처: Ladybug Incident Radiation, 6월 1일~8월 31일' : '지금은 GH 추정값입니다. Ladybug 결과로 다시 저장하면 바뀝니다.';
-  // 값 -> 바뀐 것 (판 150장을 일사 순으로)
-  const order = rads.map((v, i) => i).sort((a, b) => rads[a] - rads[b]);
-  const bw = 300 / NP, kc = [tok('--open'), tok('--perf'), tok('--solid')];
-  let svg = '';
-  order.forEach((i, x) => {
-    svg += `<rect x="${(x * bw).toFixed(2)}" y="0" width="${(bw + 0.05).toFixed(2)}" height="30" fill="${'#' + rampColor(norm(rads[i])).getHexString(THREE.SRGBColorSpace)}"/>`;
-    svg += `<rect x="${(x * bw).toFixed(2)}" y="34" width="${(bw + 0.05).toFixed(2)}" height="16" fill="${kc[kinds[i]]}"/>`;
-  });
-  svg += '<text x="0" y="62" font-size="9" fill="#57616d">적게 받는 판</text><text x="300" y="62" font-size="9" fill="#57616d" text-anchor="end">많이 받는 판</text>';
-  $('#strip').innerHTML = svg;
-  const words = [['적음', '열림', TYPES.win_open], ['중간', '타공', TYPES.win_perf], ['많음', '막힘', TYPES.win_solid]];
-  $('#ruleList').innerHTML = words.map(([a, b, t], k) =>
-    `<li><span class="key" style="background:${kc[k]};width:12px;height:12px"></span><span>${a} → <b>${b}</b><br><span class="small">${t ? t.material : ''}${BAND_KIND[k].length ? ', ' + BAND_KIND[k].join(', ') : ''}</span></span><span class="n">${kindCount[k]}</span></li>`).join('');
+  // 값 -> 바뀐 것
+  $('#ruleFormula').textContent = `GH 규칙: (일사 − ${Math.round(rmin)}) ÷ (${Math.round(rmax)} − ${Math.round(rmin)}) × 3 → 내림 → 0 열림, 1 타공, 2 막힘`;
+  for (const id of ['thr1', 'thr2']) { const r = $('#' + id); r.min = Math.floor(rmin); r.max = Math.ceil(rmax); r.step = 1; }
+  setThresholds(thr[0], thr[1], true);
   // GH 흐름
   const P = D.params, tot = D.types.reduce((s, t) => s + t.count, 0);
   $('#flow').innerHTML = `
@@ -739,15 +901,41 @@ function fillSide() {
   let rows = '<tr><th>블록</th><th class="num">개수</th></tr>';
   for (const f of fam) {
     rows += `<tr class="fam"><td>${f.name} ${f.items.length}종</td><td class="num">${won(f.items.reduce((s, t) => s + t.count, 0))}</td></tr>`;
-    for (const t of f.items) rows += `<tr><td><span class="key" style="background:${t.color}"></span>${t.name}<span class="mat">${t.material}</span></td><td class="num">${won(t.count)}</td></tr>`;
+    for (const t of f.items) rows += `<tr data-id="${t.id}" tabindex="0"><td><span class="key" style="background:${t.color}"></span>${t.name}<span class="mat">${t.material}</span></td><td class="num">${won(t.count)}</td></tr>`;
   }
   rows += `<tr class="total"><td>${D.types.length}종</td><td class="num">${won(tot)}</td></tr>`;
   $('#countTable').innerHTML = rows;
+  $$('#countTable tr[data-id]').forEach((tr) => { tr.addEventListener('click', () => { if (state.scene === 4) showMember(tr.dataset.id); }); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') tr.click(); }); });
   $$('[data-count]').forEach((el) => { el.textContent = won(countOf(el.dataset.count)); });
   // 주름 깊이
   const dep = P.w * Math.sin(THREE.MathUtils.degToRad(P.phi));
   $('#depthTxt').textContent = dep.toFixed(2) + ' m';
   $('#depthRatio').textContent = Math.round(rig.stats(rig.B1).span / dep);
+}
+
+// 판 150장을 일사 순으로: 위 띠는 값(색), 아래 띠는 정해진 창, 세로선은 경계값
+const KC = () => [tok('--open'), tok('--perf'), tok('--solid')];
+function drawStrip() {
+  const bw = 300 / NP, kc = KC();
+  let svg = '';
+  rankOrder.forEach((i, x) => {
+    svg += `<rect x="${(x * bw).toFixed(2)}" y="0" width="${(bw + 0.05).toFixed(2)}" height="30" fill="${'#' + rampColor(norm(rads[i])).getHexString(THREE.SRGBColorSpace)}"/>`;
+    svg += `<rect x="${(x * bw).toFixed(2)}" y="34" width="${(bw + 0.05).toFixed(2)}" height="16" fill="${kc[kindsLive[i]]}"/>`;
+  });
+  for (const t of thrLive) { const x = rankOrder.filter((i) => rads[i] < t).length * bw; svg += `<rect x="${(x - 0.6).toFixed(1)}" y="0" width="1.2" height="52" fill="${tok('--ink')}"/>`; }
+  svg += '<rect id="stripCursor" x="0" y="0" width="2" height="52" fill="' + tok('--cobalt') + '" visibility="hidden"/>';
+  svg += '<text x="0" y="62" font-size="9" fill="#57616d">적게 받는 판</text><text x="300" y="62" font-size="9" fill="#57616d" text-anchor="end">많이 받는 판</text>';
+  $('#strip').innerHTML = svg;
+}
+function drawStripCursor(u) {
+  const c = $('#stripCursor'); if (!c) return;
+  if (u === null) c.setAttribute('visibility', 'hidden'); else { c.setAttribute('visibility', 'visible'); c.setAttribute('x', (u * 300 - 1).toFixed(1)); }
+}
+function drawRule() {
+  const kc = KC(), bk = bandKinds(kindsLive);
+  const words = [['적음', '열림', TYPES.win_open], ['중간', '타공', TYPES.win_perf], ['많음', '막힘', TYPES.win_solid]];
+  $('#ruleList').innerHTML = words.map(([a, b, t], k) =>
+    `<li><span class="key" style="background:${kc[k]};width:12px;height:12px"></span><span>${a} → <b>${b}</b><br><span class="small">${t ? t.material : ''}${bk[k].length ? ', ' + bk[k].join(', ') : ''}</span></span><span class="n">${kindCount[k]}</span></li>`).join('');
 }
 
 // GH 와 웹 비교 (같은 공식인지)
@@ -774,33 +962,99 @@ function updateFoldReadout() {
 }
 
 // 재료 (반사)
+// 판 전체 면적 (창 구멍 뺀 값) -> 재료별 무게
+const PLATE_AREA = (() => {
+  let a = 0;
+  for (let b = 1; b <= N; b++) {
+    const t = TYPES['plate_' + b] || {}, P = t.shape || rig.shapes[b], [L, W] = t.hole || [1.2, 0.3];
+    let s2 = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q2 = P[(i + 1) % P.length]; s2 += p[0] * q2[1] - q2[0] * p[1]; }
+    a += (Math.abs(s2) / 2 - L * W) * n;
+  }
+  return a;
+})();
 const PRESETS = [
-  { id: 'lvl', name: 'LVL 목재', color: '#cdb892', rough: 0.72, metal: 0, refl: 0.4, note: '부드럽게 퍼지는 반사' },
-  { id: 'corten', name: '내후성 강판', color: '#8a4a2c', rough: 0.82, metal: 0.35, refl: 0.15, note: '빛을 거의 먹음' },
-  { id: 'alu', name: '알루미늄 판', color: '#c9cdd2', rough: 0.3, metal: 1, refl: 0.7, note: '은은한 금속 반사' },
-  { id: 'mirror', name: '미러 스테인리스', color: '#e4e7ea', rough: 0.05, metal: 1, refl: 0.6, note: '주변을 거울처럼 비춤' },
+  { id: 'lvl', name: 'LVL 단판적층재 30 mm', color: '#cdb892', rough: 0.72, metal: 0, refl: 0.4, kg: 16.5, note: '얇은 나무 단판을 겹쳐 붙인 구조용 목재. 가볍고 CNC 가공이 쉬움' },
+  { id: 'corten', name: '내후성 강판 (코르텐) 6 mm', color: '#8a4a2c', rough: 0.82, metal: 0.35, refl: 0.15, kg: 47.1, note: '겉의 녹이 보호막. 튼튼하지만 무거워 발이 더 벌어짐' },
+  { id: 'alu', name: '알루미늄 판 (A5052) 5 mm', color: '#c9cdd2', rough: 0.3, metal: 1, refl: 0.7, kg: 13.5, note: '가장 가볍고 녹이 슬지 않음. 빛을 많이 되비춤' },
+  { id: 'mirror', name: '미러 스테인리스 (STS304) 3 mm', color: '#e4e7ea', rough: 0.05, metal: 1, refl: 0.6, kg: 23.8, note: '거울처럼 공원을 비춤. 여름엔 눈부심 주의' },
 ];
 if (CONFIG.style !== 'real') PRESETS.unshift({ id: 'model', name: '모형 흰색', color: '#efefec', rough: 0.92, metal: 0, refl: 0.8, note: '재료 대신 형태만' });
-$('#matList').innerHTML = PRESETS.map((p, i) => `<label><input type="radio" name="mat" value="${i}" ${i === 0 ? 'checked' : ''}><span>${p.name}<span class="small" style="display:block">${p.note}, 반사율 약 ${Math.round(p.refl * 100)}%</span></span><span class="bar"><i style="width:${p.refl * 100}%"></i></span></label>`).join('');
+$('#matList').innerHTML = PRESETS.map((p, i) => `<label><input type="radio" name="mat" value="${i}" ${i === 0 ? 'checked' : ''}><span>${p.name}<span class="small" style="display:block">${p.kg ? `${p.kg} kg/m², 판 전체 약 ${(p.kg * PLATE_AREA / 1000).toFixed(1)} t, ` : ''}반사 ${Math.round(p.refl * 100)}%</span><span class="small note">${p.note}</span></span><span class="bar"><i style="width:${p.refl * 100}%"></i></span></label>`).join('');
 $$('#matList input').forEach((r) => r.addEventListener('change', () => {
   const p = PRESETS[+r.value];
   MAT.plate.color.set(p.color); MAT.plate.roughness = p.rough; MAT.plate.metalness = p.metal;
   scene.environmentIntensity = p.metal > 0.5 ? 0.8 : 0.45;
 }));
 
+// ------------------------------------------------------------------ 재료 카드 (실제 건축 재료)
+const OPEN_RATIO = (() => { const t = TYPES.win_perf || {}, [L, W] = t.size || [1.2, 0.3], [nx, ny, r] = t.holes || [16, 4, 0.022]; return nx * ny * Math.PI * r * r / (L * W); })();
+const MATINFO = {
+  plate: { title: 'LVL (단판적층재) 30 mm', rows: [
+    ['재료', '3 mm 안팎의 나무 단판을 결 방향으로 겹쳐 붙인 구조용 목재. 넓은 판으로 써도 잘 휘거나 갈라지지 않음'],
+    ['규격', `밀도 약 550 kg/m³, 30 mm 판 약 16.5 kg/m². 판 150장 ${PLATE_AREA.toFixed(0)} m² → 약 ${(PLATE_AREA * 16.5 / 1000).toFixed(1)} t`],
+    ['가공', 'CNC 라우터로 판 외곽과 창 구멍을 한 번에 자름. 띠마다 모양이 하나라 같은 파일로 30장씩 반복'],
+    ['마감', '발수·자외선 차단 오일. 반사율 약 40% 라 안쪽 빛 얼룩이 또렷'] ] },
+  win_open: { title: '폴리카보네이트 판 8 mm (투명)', rows: [
+    ['재료', '유리처럼 투명하지만 훨씬 가볍고 깨지지 않는 플라스틱 판. 온실, 버스 정류장 지붕에 흔히 쓰임'],
+    ['규격', `빛 투과 약 85%, 약 9.6 kg/m², 창 하나 ${(WS[0] * WS[1]).toFixed(2)} m²`],
+    ['고정', 'EPDM 고무 가스켓으로 판 구멍에 끼움'],
+    ['쓰인 곳', '일사가 적은 판 → 약한 빛을 그대로 들임'] ] },
+  win_perf: { title: '타공 알루미늄판 4 mm', rows: [
+    ['재료', '알루미늄 판에 구멍을 규칙적으로 뚫은 외장재. 건물 차양, 주차장 외벽에 많이 쓰임'],
+    ['규격', `구멍 Ø${Math.round(((TYPES.win_perf || {}).holes || [0, 0, 0.022])[2] * 2000)} mm, 간격 75 mm → 개구율 약 ${Math.round(OPEN_RATIO * 100)}%. 약 10.8 kg/m²`],
+    ['가공', '펀칭 또는 레이저 타공 후 분체도장'],
+    ['쓰인 곳', `일사가 중간인 판 → 빛의 약 ${Math.round(OPEN_RATIO * 100)}% 만 통과, 바닥에 점무늬 빛 얼룩`] ] },
+  win_solid: { title: '알루미늄 복합판 (ACM) 6 mm', rows: [
+    ['재료', '알루미늄 0.5 mm 두 장 사이에 불연 심재를 넣은 외장 패널. 상가 간판, 건물 외벽에 흔함'],
+    ['규격', '약 7.5 kg/m², 평평하고 단단함'],
+    ['고정', '재단 후 판 구멍 테두리에 볼트로 고정'],
+    ['쓰인 곳', '일사가 가장 많은 판 → 강한 여름 해를 막아 그늘'] ] },
+  hinge_gen: { title: '강재 핀 힌지 (스테인리스 STS304)', rows: [
+    ['재료', '녹슬지 않는 스테인리스 강. 야외에서 여러 번 조립·해체해도 견딤'],
+    ['규격', `핀 Ø${Math.round(((TYPES.hinge_gen || {}).r || 0.018) * 2000)} mm × ${Math.round(((TYPES.hinge_gen || {}).L || 0.16) * 1000)} mm, 판마다 볼트 4개`],
+    ['역할', '띠 안의 주름 접힘선을 이어 판이 접히게 함. 세운 뒤 볼트로 각도를 고정'] ] },
+  hinge_zig: { title: '강재 핀 힌지 + 잠금판 (스테인리스)', rows: [
+    ['재료', '같은 스테인리스 핀 힌지에 6 mm 강판 잠금판을 더함'],
+    ['규격', `핀 Ø${Math.round(((TYPES.hinge_zig || {}).r || 0.026) * 2000)} mm × ${Math.round(((TYPES.hinge_zig || {}).L || 0.22) * 1000)} mm, 잠금판 볼트 2개`],
+    ['역할', '띠와 띠가 크게 꺾이는 곳. 잠금판으로 각도를 묶어야 접히는 기계가 서 있는 구조가 됨 (AI 검토 1)'] ] },
+  shoe: { title: '받침 슈 (용융아연도금 강판)', rows: [
+    ['재료', '녹 방지를 위해 아연을 입힌 강판 300 × 300 × 20 mm + 세움 리브'],
+    ['고정', '땅에는 스크류 파일(나선형 강관 말뚝)을 돌려 박고 볼트로 연결. 콘크리트 없이 설치하고 빼낼 수 있음'],
+    ['역할', '발을 땅에 묶고, 양쪽 발을 바닥 아래 강봉 타이(Ø24)로 이어 벌어짐을 막음 (AI 검토 2)'] ] },
+};
+let memberFilter = null;
+function matKey(id) { return id.startsWith('plate_') ? 'plate' : id; }
+function showMember(id) {
+  memberFilter = memberFilter === id ? null : id;
+  $$('#countTable tr[data-id]').forEach((tr) => tr.classList.toggle('sel', tr.dataset.id === memberFilter));
+  const card = $('#matCard');
+  if (!memberFilter) { card.hidden = true; applyMemberFilter(); return; }
+  const t = TYPES[memberFilter] || {}, info = MATINFO[matKey(memberFilter)];
+  card.innerHTML = `<div class="fam">${t.family || ''}, ${t.name || memberFilter}, ${won(t.count || 0)}개</div><h4>${info.title}</h4><dl>${info.rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl><button type="button" class="btn" id="matAll">전체 보기</button>`;
+  card.hidden = false;
+  $('#matAll').addEventListener('click', () => showMember(memberFilter));
+  applyMemberFilter();
+}
+function applyMemberFilter() {
+  if (state.scene !== 4) return;
+  for (const [id, m] of Object.entries(IM)) m.visible = memberFilter ? id === memberFilter : (id === 'shoe' ? state.assembled : true);
+  fixes.visible = !memberFilter && state.wantFixes && state.t > 0.999 && state.explode < 0.01;
+  shadowDirty();
+}
+
 // ------------------------------------------------------------------ 발표 노트 (N)
 const NOTES = [
   [`제 파빌리온은 '${NAME}'입니다. 한 문장으로 말하면, ${CONCEPT}.`,
     `참고한 것은 리베스킨트의 Eighteen Turns(2001)입니다. 접은 판으로 벽과 지붕을 한 몸으로 만들었죠. 저는 그 접힌 모양을 고정된 조각이 아니라, 평평한 판 한 장이 실제로 접혀 서는 구조로 바꿨습니다.`],
-  [`데이터는 Ladybug 로 계산한 6~8월 누적 일사량입니다. 판 ${NP}장마다 값이 다르고, 진할수록 여름 해를 많이 받습니다. 가장 많이 받는 곳은 ${TOP_BAND}입니다.`,
-    `이 값이 창의 종류를 바꿨습니다. 많이 받는 ${BAND_KIND[2].join('과 ') || '판'}은 막고, 중간인 ${BAND_KIND[1].join('과 ') || '판'}은 타공판으로 거르고, 적게 받는 ${BAND_KIND[0].join('과 ') || '판'}은 열었습니다. 열림 ${kindCount[0]}, 타공 ${kindCount[1]}, 막힘 ${kindCount[2]}. 시간을 움직이면 안쪽 바닥의 빛 얼룩이 바뀝니다.`],
+  [`데이터는 Ladybug 로 계산한 6~8월 누적 일사량입니다. 판 ${NP}장마다 막대 길이와 색이 그 값입니다. 가장 많이 받는 곳은 ${TOP_BAND}로 ${Math.round(rads[iMax])}, 가장 적은 곳은 ${Math.round(rads[iMin])} kWh/m² 입니다.`,
+    `이 값이 창의 종류를 바꿨습니다. 많이 받는 ${BAND_KIND[2].join('과 ') || '판'}은 막고, 중간인 ${BAND_KIND[1].join('과 ') || '판'}은 타공판으로 거르고, 적게 받는 ${BAND_KIND[0].join('과 ') || '판'}은 열었습니다. 열림 ${kindCount[0]}, 타공 ${kindCount[1]}, 막힘 ${kindCount[2]}. 경계값을 옮기면 창이 바로 바뀌고, 시간을 움직이면 안쪽 바닥의 빛 얼룩이 바뀝니다.`],
   [`로직은 접는 값 하나입니다. 0이면 평평한 판, 100이면 파빌리온입니다. 판은 휘거나 늘어나지 않고 접힘선에서만 돕니다. 빨간 선이 산접기, 파란 선이 골접기입니다.`,
     `그래스호퍼는 세 그룹입니다. 입력은 단면 점과 판 폭, 줄 수, 주름 각. 규칙은 꺾임 각으로 지그재그 길이를 정하고, 접힘선마다 뒤집어 접고, 일사로 창을 고릅니다. 출력은 블록 ${D.types.length}종과 pavilion.json. 웹도 같은 공식이라 위치가 그대로 맞습니다.`],
   [`구조는 주름이 보 역할을 합니다. 힘은 주름을 따라 양쪽 발로 내려갑니다.`,
     `AI 에게 약점을 물었더니 세 가지였습니다. 첫째, 힌지가 풀려 있으면 이건 구조가 아니라 접히는 기계라서 자기 무게에 펴지며 주저앉습니다. 둘째, 아치처럼 발이 바깥으로 벌어집니다. 셋째, 열린 양 끝의 주름이 벌어집니다.`,
     `그래서 꺾임 힌지에 잠금판, 발에는 받침 슈와 바닥 아래 타이, 양 끝에는 테두리 프레임을 더했습니다.`],
   [`부재는 판 ${N}종, 창 3종, 힌지 2종, 받침 1종, 모두 ${D.types.length}종 ${won(D.types.reduce((s, t) => s + t.count, 0))}개입니다. 판은 띠마다 모양이 하나라서 ${N}종이면 됩니다.`,
-    `조인트는 판과 판 사이의 핀 힌지이고, 창 모듈은 판의 구멍에 끼웁니다. 재료를 바꾸면 반사가 달라집니다. LVL 은 반사가 낮아 안쪽 빛 얼룩이 또렷합니다.`,
+    `판은 LVL 단판적층재 30 mm, 열린 창은 폴리카보네이트, 타공은 개구율 ${Math.round(OPEN_RATIO * 100)}% 알루미늄, 막힌 창은 알루미늄 복합판입니다. 조인트는 스테인리스 핀 힌지이고 꺾이는 곳은 잠금판으로 묶습니다. 판을 강판으로 바꾸면 무게가 세 배가 되어 LVL 을 골랐습니다.`,
     `생산은 땅에서 평평하게 조립하고, 접어 올리고, 힌지를 잠그고, 받침을 고정합니다. 해체는 거꾸로, 다시 평평하게 펴서 옮깁니다.`,
     `이 아래에서 사람은 시간마다 자리를 옮기는 빛 얼룩 사이를 걷고 머뭅니다. 다시 처음 문장으로. ${CONCEPT}. 감사합니다.`],
 ];
@@ -871,6 +1125,15 @@ function enter(si, st, ps, pst) {
   personTag.on = si === 0 && st === 0;
   $('#closing').classList.toggle('on', si === 4 && st === 3);
   showGlb();
+  park.visible = si === 0 || (si === 4 && st === 3); grid.visible = !park.visible; FOG.park = park.visible;
+  spikes.visible = si === 1 && st === 0; updateSpikes();
+  for (const t of dataTags) t.on = si === 1 && st === 0;
+  if (!(si === 1 && st === 1)) { stopSweep(); state.extView = false; }
+  if (si !== 1 && kindsLive.some((k, i) => k !== kinds[i])) setThresholds(thr[0], thr[1], true);
+  if (si !== 4 && memberFilter) showMember(memberFilter);          // 표 선택 해제
+  if (si !== ps) walk.dragged = false;
+  if (!walk.dragged && si !== 0 && !(si === 4 && st === 3)) { person.position.copy(HOME); person.rotation.y = Math.PI; }
+  if (!walk.dragged && (si === 0 || (si === 4 && st === 3))) walk.x = clamp(person.position.x, -10, 10);
   if (si !== 4) { if (state.joint) setJoint(false); if (explodeTw) { tweens.delete(explodeTw); explodeTw = null; } if (state.explode) setExplode(0); }
   state.wantFixes = (si === 3 && st === 2) || (si === 4 && state.assembled);
   IM.shoe.visible = !(si === 4 && !state.assembled);
@@ -898,10 +1161,12 @@ function enter(si, st, ps, pst) {
     if (st >= 1 && state.explode) animateExplode(0, 0.9);
     if (state.joint !== wantJoint) setJoint(wantJoint, st >= 1 && state.explode ? 950 : 0);
   } else if (state.t < 0.999 && !foldTw) animateT(1, 1.2);
+  if (si === 1 && st === 1 && !(ps === 1 && pst === 1)) { winShown.fill(false); state.sweeping = true; setTimeout(() => { if (run === runId) playSweep(); }, 500); }
   refreshFixes();
   if (loadPath.group.visible) buildLoadPath();
   if (creaseLines.visible) updateCreaseLines();
   moveCamera();
+  if (si === 4 && memberFilter) applyMemberFilter();
 }
 
 // 조립과 해체
@@ -939,7 +1204,7 @@ function bindRange(el, fn) {
   el.addEventListener('pointerup', () => el.blur());
   upd();
 }
-bindRange($('#sunHour'), (v) => { if (state.scene === 1) setSun(v); });
+bindRange($('#sunHour'), (v) => { if (state.scene === 1) { setSun(v); if (state.extView) { state.extView = false; moveCamera(); } } });
 bindRange($('#foldT'), (v) => { if (state.scene === 2 && (document.activeElement === $('#foldT') || !foldTw)) { if (foldTw) { tweens.delete(foldTw); foldTw = null; } applyPose(v / 100); } });
 bindRange($('#explode'), (v) => { if (state.scene === 4 && Math.abs(v / 100 - state.explode) > 1e-3) { state.explode = v / 100; $('#explodeOut').textContent = v + '%'; applyPose(state.t); if (state.joint) { camKey = null; moveCamera(); } } });
 $('#foldPlay').addEventListener('click', () => { applyPose(0); animateT(1, 4.2); });
@@ -1067,7 +1332,7 @@ go(0, 0);
 if (!REDUCED && CONFIG.intro !== 'still') setTimeout(() => { if (state.scene === 0) animateT(1, 3.6); }, 700);
 layout();
 
-const clock = new THREE.Clock();
+const clock = new THREE.Clock(), pclock = new THREE.Clock();
 renderer.setAnimationLoop((now) => {
   for (const tw of [...tweens]) {
     const u = clamp((now - tw.t0) / tw.dur, 0, 1);
@@ -1077,9 +1342,10 @@ renderer.setAnimationLoop((now) => {
   controls.autoRotate = (state.scene === 0 || (state.scene === 4 && state.step === 3)) && !camTw && !REDUCED;
   controls.update();
   if (loadPath.group.visible) animateLoadPath(clock.getElapsedTime());
+  updatePerson(Math.min(pclock.getDelta(), 0.05));
   syncCams();
   updateTags();
   drawTimer(now);
   if (composer) composer.render(); else renderer.render(scene, rcam);
 });
-window.__pav = { state, go, rig, applyPose, setExplode, camera, controls };
+window.__pav = { state, go, rig, applyPose, setExplode, camera, controls, person, screenOf: (v) => { const p = v.clone().project(rcam); return [(p.x + 1) / 2 * innerWidth, (1 - p.y) / 2 * innerHeight]; } };
