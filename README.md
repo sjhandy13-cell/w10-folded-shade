@@ -1,5 +1,7 @@
 # 접힌 그늘: 발표 웹
 
+배포 주소: https://w10-folded-shade.vercel.app
+
 웹 페이지 하나로 하는 10주차 발표용 페이지입니다. three.js r170 이 `lib/` 에 들어 있어 인터넷 CDN 없이도 돌아갑니다.
 
 ## 폴더
