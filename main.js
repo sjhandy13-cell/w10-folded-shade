@@ -1367,6 +1367,7 @@ function go(si, st) {
   $$(`.scene[data-scene="${si}"] .step`).forEach((s) => s.classList.toggle('on', s.classList.contains('keep') ? +s.dataset.step <= st : +s.dataset.step === st));
   document.body.classList.toggle('closing', si === 4 && st === 3);
   $$('.sidebox').forEach((s) => s.classList.toggle('on', +s.dataset.for === si));
+  $('#refBox').classList.toggle('on', si === 0 && st >= 1);
   $('#ruleBox').hidden = !(si === 1 && st >= 1);
   $('#aiBox').classList.toggle('fixed', si === 3 && st === 2);
   $$('[data-goto]').forEach((b) => { const [s, t] = b.dataset.goto.split(',').map(Number); b.setAttribute('aria-pressed', String(s === si && t === st)); });
@@ -1533,6 +1534,11 @@ ghImg.addEventListener('load', () => { ghImg.hidden = false; $('#ghEmpty').hidde
 ghImg.src = './assets/gh_canvas.png';
 ghImg.addEventListener('click', () => { const lb = $('#lightbox'); lb.querySelector('img').src = ghImg.src; lb.classList.add('on'); });
 $('#lightbox').addEventListener('click', (e) => e.currentTarget.classList.remove('on'));
+// 참고한 파빌리온 사진: 누르면 원본 크기, 못 불러오면 그 사진만 숨김
+$$('#refBox img').forEach((im) => {
+  im.addEventListener('click', () => { const lb = $('#lightbox'); lb.querySelector('img').src = im.dataset.full || im.src; lb.classList.add('on'); });
+  im.addEventListener('error', () => { im.hidden = true; });
+});
 $('#ghData').addEventListener('click', (e) => { const lb = $('#lightbox'); lb.querySelector('img').src = e.currentTarget.src; lb.classList.add('on'); });
 
 // 장면 안 키워드: 누르면 설명이 열림 (장면마다 하나씩만)

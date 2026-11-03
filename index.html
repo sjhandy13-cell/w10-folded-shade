@@ -95,6 +95,12 @@ table.count tr[data-id].sel td { background: rgba(39,71,199,.12); }
 .thr { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--hair); }
 #ruleFormula { margin: 8px 0 0; }
 canvas#c.grab { cursor: grabbing; }
+.ref .refmain { margin: 0; }
+.ref img { display: block; width: 100%; height: auto; cursor: zoom-in; background: var(--hair); }
+.ref .refthumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.ref .refthumbs img { aspect-ratio: 4 / 5; object-fit: cover; }
+.ref .small { margin: 10px 0 0; }
+.ref .credit { margin: 6px 0 0; font-size: 12px; color: var(--ink-3); }
 .topics { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--hair); }
 .topic-row { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .topic { background: none; border: 0; padding: 2px 0; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; border-bottom: 1px solid var(--cobalt); }
@@ -293,8 +299,9 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
       <h3>참고한 것과 바꾼 것</h3>
       <dl class="pair">
         <dt>느끼게 할 것</dt><dd>접힌 판 아래에서 시간마다 자리를 옮기는 여름 빛의 결</dd>
-        <dt>참고</dt><dd>Eighteen Turns, 다니엘 리베스킨트 (2001). 접은 판으로 벽과 지붕을 한 몸으로 만든 파빌리온</dd>
-        <dt>바꾼 것</dt><dd>고정된 접힌 조각을, 한 장의 판이 실제로 접혀 서는 구조로. 접는 정도 하나로 평평한 판에서 파빌리온까지</dd>
+        <dt>참고</dt><dd>Eighteen Turns, 다니엘 리베스킨트 (서펜타인 갤러리 파빌리온 2001). 오른쪽 사진</dd>
+        <dt>가져온 것</dt><dd>접는 방식. 평평한 판을 종이접기처럼 접어, 벽과 지붕이 끊기지 않고 한 몸으로 이어지게 하는 방법</dd>
+        <dt>바꾼 것</dt><dd>접힌 모양을 고정된 조각으로 두지 않고, 판 한 장이 실제로 접혀 서는 구조로. 접는 정도 하나로 평평한 판에서 파빌리온까지 이어집니다</dd>
         <dt>웹 참고</dt><dd>Origami Simulator: 접는 정도를 슬라이더 하나로 움직이는 방식</dd>
       </dl>
     </div>
@@ -436,6 +443,16 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
 </main>
 
 <aside id="side">
+  <section class="sidebox ref" id="refBox">
+    <h3>참고한 파빌리온</h3>
+    <figure class="refmain"><img src="https://libeskind.com/wp-content/uploads/SERPcladding.detail-5-c-H.-Binet-1140x650.jpg" data-full="https://libeskind.com/wp-content/uploads/SERPcladding.detail-5-c-H.-Binet.jpg" referrerpolicy="no-referrer" alt="Eighteen Turns, 접힌 판으로 된 서펜타인 갤러리 파빌리온 2001 사진"></figure>
+    <div class="refthumbs">
+      <img src="https://libeskind.com/wp-content/uploads/SERPcladding.detail-8-c-H.-Binet-509x650.jpg" data-full="https://libeskind.com/wp-content/uploads/SERPcladding.detail-8-c-H.-Binet.jpg" referrerpolicy="no-referrer" alt="Eighteen Turns 사진 2">
+      <img src="https://libeskind.com/wp-content/uploads/SERPcladding.detail-14-c-H.-Binet-516x650.jpg" data-full="https://libeskind.com/wp-content/uploads/SERPcladding.detail-14-c-H.-Binet.jpg" referrerpolicy="no-referrer" alt="Eighteen Turns 사진 3">
+    </div>
+    <p class="small"><b>Eighteen Turns</b>, 다니엘 리베스킨트, 서펜타인 갤러리 파빌리온 2001. 판을 종이접기처럼 접어 벽과 지붕을 한 몸으로 만든 파빌리온</p>
+    <p class="credit">사진 Hélène Binet, 출처 Studio Libeskind. 사진을 누르면 크게 보입니다.</p>
+  </section>
   <section class="sidebox" data-for="1">
     <h3><span id="dataLabel">6~8월 누적 일사</span> <span class="unit" id="dataUnit">kWh/m²</span></h3>
     <div class="ramp" id="rampBar"></div>
