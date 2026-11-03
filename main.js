@@ -1361,6 +1361,7 @@ function go(si, st) {
   state.scene = si; state.step = st;
   seen = Math.max(seen, si);
   if (pov.on) { exitPov(false); camKey = null; }
+  if (prevScene !== si && typeof closeTopics === 'function') closeTopics();
   // 카드와 패널
   $$('.scene').forEach((a) => a.classList.toggle('on', +a.dataset.scene === si));
   $$(`.scene[data-scene="${si}"] .step`).forEach((s) => s.classList.toggle('on', s.classList.contains('keep') ? +s.dataset.step <= st : +s.dataset.step === st));
@@ -1532,6 +1533,18 @@ ghImg.addEventListener('load', () => { ghImg.hidden = false; $('#ghEmpty').hidde
 ghImg.src = './assets/gh_canvas.png';
 ghImg.addEventListener('click', () => { const lb = $('#lightbox'); lb.querySelector('img').src = ghImg.src; lb.classList.add('on'); });
 $('#lightbox').addEventListener('click', (e) => e.currentTarget.classList.remove('on'));
+$('#ghData').addEventListener('click', (e) => { const lb = $('#lightbox'); lb.querySelector('img').src = e.currentTarget.src; lb.classList.add('on'); });
+
+// 장면 안 키워드: 누르면 설명이 열림 (장면마다 하나씩만)
+function closeTopics(scope = document) {
+  $$('.topic', scope).forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  $$('.topic-body', scope).forEach((p) => { p.hidden = true; });
+}
+$$('.topic').forEach((b) => b.addEventListener('click', () => {
+  const box = b.closest('.topics'), open = b.getAttribute('aria-expanded') !== 'true';
+  closeTopics(box);
+  if (open) { b.setAttribute('aria-expanded', 'true'); const p = $('#' + b.getAttribute('aria-controls')); p.hidden = false; p.scrollIntoView({ block: 'nearest' }); }
+}));
 
 // 라이노 glb (있으면 3장면에서 보기)
 let glb = null;
@@ -1741,11 +1754,10 @@ addEventListener('keydown', (e) => {
   else if (k >= '1' && k <= '5') go(+k - 1, 0);
   else if (k === 'r' || k === 'R') { if (pov.on) exitPov(); else { camKey = null; moveCamera(true); } }
   else if (k === 'n' || k === 'N') $('#notes').classList.toggle('on');
-  else if (k === 'q' || k === 'Q') { const q = $('#qa'); q.hidden = !q.hidden; }
   else if (k === 'f' || k === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
   else if (k === 'p' || k === 'P') { if (state.scene === 2) $('#foldPlay').click(); if (state.scene === 4) playAssembly(); }
   else if (k === 'o' || k === 'O') setOrtho(!state.ortho);
-  else if (k === 'Escape') { $('#lightbox').classList.remove('on'); $('#qa').hidden = true; exitPov(); }
+  else if (k === 'Escape') { $('#lightbox').classList.remove('on'); closeTopics(); exitPov(); }
 });
 
 // ------------------------------------------------------------------ 시작
