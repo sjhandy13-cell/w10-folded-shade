@@ -114,7 +114,7 @@ canvas#c.grab { cursor: grabbing; }
 .tools li { counter-increment: tl; display: flex; gap: 8px; align-items: baseline; }
 .tools li::before { content: counter(tl); flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--cobalt); color: #fff; font-size: 11px; font-weight: 600; display: inline-grid; place-items: center; transform: translateY(3px); }
 .toolcap { margin: 8px 0 0; }
-.toolcap img { display: block; width: 100%; cursor: zoom-in; border: 1px solid var(--hair); }
+.toolcap img { display: block; width: 100%; cursor: default; border: 1px solid var(--hair); }
 .toolcap figcaption { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
 
 /* 이름과 한 문장 */
@@ -195,7 +195,7 @@ svg.strip { display: block; width: 100%; height: auto; margin-top: 4px; }
 .flow li { margin-top: 2px; }
 .flow .arrow { text-align: center; color: var(--ink-3); line-height: 1; font-size: 14px; margin: -4px 0; }
 figure.cap { margin: 12px 0 0; }
-figure.cap img { width: 100%; display: block; border: 1px solid var(--hair); cursor: zoom-in; background: #fff; }
+figure.cap img { width: 100%; display: block; border: 1px solid var(--hair); cursor: default; background: #fff; }
 figure.cap .empty { border: 1px dashed var(--ink-3); padding: 18px 12px; font-size: 13px; color: var(--ink-2); text-align: center; }
 figure.cap figcaption { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
 .ai dl { margin: 8px 0 0; font-size: 13px; }
@@ -333,7 +333,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
         <li>판 150장 일사 계산 (Ladybug)</li>
         <li>0 ~ 3 으로 Remap, 판마다 창 블록 선택</li>
       </ol>
-      <figure class="cap toolcap"><img id="ghData" src="./assets/gh_data.png" alt="그래스호퍼 캔버스에서 일사를 계산해 창 블록을 고르는 부분, 번호는 위 순서"><figcaption>그래스호퍼 캔버스의 해당 부분. 번호가 위 순서이고, 누르면 크게 보입니다.</figcaption></figure>
+      <figure class="cap toolcap"><img id="ghData" src="./assets/gh_data.png" alt="그래스호퍼 캔버스에서 일사를 계산해 창 블록을 고르는 부분, 번호는 위 순서"><figcaption>그래스호퍼 캔버스의 해당 부분. 번호가 위 순서입니다.</figcaption></figure>
       <h3 style="margin-top:14px">안으로 드는 빛</h3>
       <div class="ctl">
         <label class="row" for="sunHour"><span>서울, 7월 21일</span><output id="sunOut">10:00</output></label>
@@ -487,7 +487,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
     <figure class="cap" id="ghFig">
       <img id="ghImg" alt="그래스호퍼 캔버스 캡처" hidden>
       <div class="empty" id="ghEmpty">GH 캔버스 캡처를 <b>assets/gh_canvas.png</b> 로 넣으면 여기에 보입니다.</div>
-      <figcaption>색 상자가 왼쪽의 세 그룹입니다. 누르면 크게 보입니다.</figcaption>
+      <figcaption>색 상자가 왼쪽의 세 그룹입니다.</figcaption>
     </figure>
   </section>
   <section class="sidebox ai" data-for="3" id="aiBox">

@@ -1540,14 +1540,12 @@ $('#renderView').addEventListener('click', (e) => e.currentTarget.classList.remo
 const ghImg = $('#ghImg');
 ghImg.addEventListener('load', () => { ghImg.hidden = false; $('#ghEmpty').hidden = true; });
 ghImg.src = './assets/gh_groups.png';
-ghImg.addEventListener('click', () => { const lb = $('#lightbox'); lb.querySelector('img').src = ghImg.src; lb.classList.add('on'); });
 $('#lightbox').addEventListener('click', (e) => e.currentTarget.classList.remove('on'));
 // 참고한 파빌리온 사진: 누르면 원본 크기, 못 불러오면 그 사진만 숨김
 $$('#refBox img').forEach((im) => {
   im.addEventListener('click', () => { const lb = $('#lightbox'); lb.querySelector('img').src = im.dataset.full || im.src; lb.classList.add('on'); });
   im.addEventListener('error', () => { im.hidden = true; });
 });
-$('#ghData').addEventListener('click', (e) => { const lb = $('#lightbox'); lb.querySelector('img').src = e.currentTarget.src; lb.classList.add('on'); });
 
 // 장면 안 키워드: 누르면 설명이 열림 (장면마다 하나씩만)
 function closeTopics(scope = document) {
