@@ -188,6 +188,11 @@ svg.strip { display: block; width: 100%; height: auto; margin-top: 4px; }
 .flow section { border: 1px solid var(--hair); padding: 8px 10px; background: rgba(255,255,255,.35); }
 .flow h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
 .flow ul { margin: 0; padding-left: 16px; }
+.flow section.g1 { border-left: 4px solid #2747c7; }
+.flow section.g2 { border-left: 4px solid #c2410c; }
+.flow section.g3 { border-left: 4px solid #15803d; }
+.flow .cmp { display: block; color: var(--ink-3); font-size: 12px; }
+.flow li { margin-top: 2px; }
 .flow .arrow { text-align: center; color: var(--ink-3); line-height: 1; font-size: 14px; margin: -4px 0; }
 figure.cap { margin: 12px 0 0; }
 figure.cap img { width: 100%; display: block; border: 1px solid var(--hair); cursor: zoom-in; background: #fff; }
@@ -482,7 +487,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
     <figure class="cap" id="ghFig">
       <img id="ghImg" alt="그래스호퍼 캔버스 캡처" hidden>
       <div class="empty" id="ghEmpty">GH 캔버스 캡처를 <b>assets/gh_canvas.png</b> 로 넣으면 여기에 보입니다.</div>
-      <figcaption>입력 → 규칙 → 출력 세 그룹으로 정리한 캔버스</figcaption>
+      <figcaption>색 상자가 왼쪽의 세 그룹입니다. 누르면 크게 보입니다.</figcaption>
     </figure>
   </section>
   <section class="sidebox ai" data-for="3" id="aiBox">

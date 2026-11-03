@@ -1126,11 +1126,19 @@ function fillSide() {
   // GH 흐름
   const P = D.params, tot = D.types.reduce((s, t) => s + t.count, 0);
   $('#flow').innerHTML = `
-    <section><h4>입력</h4><ul><li>단면 점 ${P.profile.length}개 (사람 키 위로 지붕)</li><li>판 폭 ${P.w} m, ${P.n}줄</li><li>주름 각 ${P.phi}°, 접기 0~1</li><li>Ladybug 일사 (판마다)</li></ul></section>
+    <section class="g1"><h4>1 입력: 무엇을 넣나</h4><ul>
+      <li>단면 점 ${P.profile.length}개 <span class="cmp">Panel. 바닥에서 지붕 2.6 ~ 5.3 m 까지 단면을 정함</span></li>
+      <li>판 폭 ${P.w} m, ${P.n}줄, 주름 각 ${P.phi}°, 접기 ${P.t}, 방향 ${P.rot}° <span class="cmp">Number Slider 5개</span></li>
+      <li>서울 기상 데이터, 6월 1일 ~ 8월 31일 <span class="cmp">ImportEPW, AnalysisPeriod</span></li></ul></section>
     <div class="arrow">↓</div>
-    <section><h4>규칙</h4><ul><li>꺾임 각 ${rig.turns.map((v) => Math.round(v) + '°').join(', ')} → 지그재그 길이</li><li>접힘선마다 거울처럼 뒤집어 접기</li><li>일사 3구간 → 창 열림, 타공, 막힘</li></ul></section>
+    <section class="g2"><h4>2 규칙: 어떻게 바꾸나</h4><ul>
+      <li>꺾임 각 ${rig.turns.map((v) => Math.round(v) + '°').join(', ')} → 지그재그 길이, 접힘선마다 뒤집어 접기 → 판 ${NP}장 <span class="cmp">FOLD (Python)</span></li>
+      <li>판마다 여름 일사 계산 <span class="cmp">SkyMatrix → IncidentRadiation (Ladybug)</span></li>
+      <li>일사를 0 ~ 3 으로 옮겨 창 종류 결정 <span class="cmp">Bounds → Remap Numbers</span></li></ul></section>
     <div class="arrow">↓</div>
-    <section><h4>출력</h4><ul><li>블록 ${D.types.length}종, ${won(tot)}개 → 라이노 Bake</li><li>pavilion.json → 이 웹</li></ul></section>`;
+    <section class="g3"><h4>3 출력: 무엇이 나오나</h4><ul>
+      <li>부재 블록 ${D.types.length}종, ${won(tot)}개 <span class="cmp">BLOCKS (Python)</span></li>
+      <li>bake → 라이노 블록, write → pavilion.json → 이 웹 <span class="cmp">Button 2개</span></li></ul></section>`;
   // 부재 표
   const fam = [];
   for (const t of D.types) { let f = fam.find((x) => x.name === t.family); if (!f) fam.push(f = { name: t.family, items: [] }); f.items.push(t); }
@@ -1531,7 +1539,7 @@ $('#renderView').addEventListener('click', (e) => e.currentTarget.classList.remo
 // GH 캡처 이미지
 const ghImg = $('#ghImg');
 ghImg.addEventListener('load', () => { ghImg.hidden = false; $('#ghEmpty').hidden = true; });
-ghImg.src = './assets/gh_canvas.png';
+ghImg.src = './assets/gh_groups.png';
 ghImg.addEventListener('click', () => { const lb = $('#lightbox'); lb.querySelector('img').src = ghImg.src; lb.classList.add('on'); });
 $('#lightbox').addEventListener('click', (e) => e.currentTarget.classList.remove('on'));
 // 참고한 파빌리온 사진: 누르면 원본 크기, 못 불러오면 그 사진만 숨김
