@@ -235,6 +235,14 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
 #notes { position: fixed; left: 50%; transform: translateX(-50%); bottom: 72px; width: min(720px, calc(100vw - 32px)); background: var(--ink); color: var(--paper); padding: 12px 16px; font-size: 15px; line-height: 1.6; display: none; }
 #notes.on { display: block; }
 #notes small { display: block; color: var(--ink-3); font-size: 12px; margin-bottom: 4px; }
+#qa { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(780px, calc(100vw - 32px)); max-height: min(82vh, 820px); overflow: auto; background: var(--ink); color: var(--paper); padding: 16px 22px 20px; font-size: 14px; line-height: 1.6; z-index: 7; }
+#qa[hidden] { display: none; }
+#qa header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 16px; }
+#qa header small, #qa h4 { color: var(--ink-3); font-size: 12px; font-weight: 500; }
+#qa h4 { margin: 16px 0 2px; }
+#qa dl { margin: 0; }
+#qa dt { font-weight: 600; margin-top: 8px; }
+#qa dd { margin: 2px 0 0; max-width: 68ch; }
 #lightbox { position: fixed; inset: 0; background: rgba(24,32,43,.85); display: none; place-items: center; padding: 32px; cursor: zoom-out; z-index: 5; }
 #lightbox.on { display: grid; }
 #lightbox img { max-width: 100%; max-height: 100%; background: #fff; }
@@ -448,12 +456,47 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
   <button type="button" id="prev" aria-label="이전">‹</button>
   <button type="button" id="next" aria-label="다음">›</button>
 </div>
-<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌기, 더블클릭 시선</span><span>N 노트</span><span>F 전체화면</span></p>
+<p id="help"><span>← → 넘기기</span><span>1~5 장면</span><span>R 시점</span><span>O 원근/평행</span><span>사람 끌기, 더블클릭 시선</span><span>N 노트</span><span>Q 예상 질문</span><span>F 전체화면</span></p>
 <div id="glare" aria-hidden="true"><div class="veil"></div><div class="wash"></div><div class="ghost" style="width:9vmin;height:9vmin"></div><div class="ghost" style="width:5vmin;height:5vmin"></div><div class="ghost" style="width:14vmin;height:14vmin"></div></div>
 <div id="labels"></div>
 <div id="povBar" hidden><b>사람 시선</b><span>WASD, 방향키 걷기</span><span>Shift 빨리</span><span>끌어서 둘러보기</span><span>Esc 돌아가기</span></div>
 <div id="closing"><p id="closingTxt"></p></div>
 <div id="notes" role="note"></div>
+<div id="qa" role="dialog" aria-label="예상 질문과 답" hidden>
+  <header><b>예상 질문과 답</b><small>Q 또는 Esc 로 닫기</small></header>
+  <h4>데이터가 바꾼 것</h4>
+  <dl>
+    <dt>데이터가 형태도 바꿨나요?</dt>
+    <dd>형태가 아니라 판마다 끼우는 창 모듈을 바꿨습니다. 접힘 형태는 단면 점 6개와 주름 각으로 먼저 정했고, 그 위 판 150장에 Ladybug 로 6~8월 누적 일사를 계산해 많이 받는 판은 막고, 중간은 타공판으로 거르고, 적게 받는 판은 열었습니다. 8주차 유익일사 블록처럼 창 블록을 미리 만들어 두고 데이터가 고르는 방식입니다.</dd>
+    <dt>창이 면마다 같은 종류인데, 정말 데이터로 고른 건가요?</dt>
+    <dd>같은 단면을 길이 방향으로 반복한 형태라 한 면의 판들은 해를 거의 같은 각도로 받습니다. 그래서 일사가 면마다 거의 같고(같은 면 안 차이 약 ±3 kWh/m²), 창도 면 단위로 바뀝니다. 양 끝의 판만 값이 커서, 높은 벽의 양 끝 판 2장은 일사 265, 269 로 경계 259 를 넘어 막힘이 됐습니다.</dd>
+    <dt>데이터 없이 정했다면 무엇이 달라지나요?</dt>
+    <dd>창을 한 종류로 다 열면 351 kWh/m² 로 가장 많이 받는 낮은 지붕 아래로 해가 가장 많이 들어옵니다. 데이터대로 낮은 지붕은 막고 75 인 왼쪽 벽은 열어, 안쪽에 그늘과 빛 얼룩이 함께 생깁니다.</dd>
+  </dl>
+  <h4>시공 방법</h4>
+  <dl>
+    <dt>힌지가 691개인데 어떻게 시공하나요?</dt>
+    <dd>접힘선 265개(산 162, 골 103)에 1 m 마다 달아서 많지만, 힌지는 주름 힌지와 꺾임 힌지 2종뿐이라 같은 작업의 반복입니다. 판 150장은 CNC 로 외곽, 창 구멍, 힌지 구멍을 한 번에 가공하고, 땅에 평평하게 펼친 채 판, 창, 힌지를 조립해서 높은 곳 작업이 거의 없습니다.</dd>
+    <dt>평평한 판을 어떻게 세우나요?</dt>
+    <dd>이 접기는 움직일 수 있는 방향이 하나(자유도 1)라, 들어 올리면 정해진 모양으로만 접힙니다. 크레인으로 접어 올린 뒤 꺾임 힌지 270개를 잠금판으로 볼트 고정하고, 받침 슈 62개를 스크류 파일에, 양 발을 바닥 아래 타이 7줄로 잇습니다. 해체는 거꾸로 하고, 판을 평평하게 쌓아 옮깁니다.</dd>
+  </dl>
+  <h4>개구율 설정</h4>
+  <dl>
+    <dt>창 3종은 어떤 기준으로 나눴나요?</dt>
+    <dd>일사 범위 75 ~ 351 kWh/m² 를 GH Remap 으로 0 ~ 3 으로 바꾸고 내림해 세 구간으로 나눴습니다. 경계는 167 과 259 kWh/m² 이고, 판 150장이 열림 60, 타공 58, 막힘 32 로 나뉩니다. 웹에서 경계값을 옮기면 배치가 바로 바뀝니다.</dd>
+    <dt>타공판 개구율 27% 는 어떻게 정했나요?</dt>
+    <dd>구멍 지름 44 mm, 간격 75 mm 로 놓으면 구멍 넓이 ÷ 판 넓이 = (π × 22²) ÷ 75² ≈ 27% 입니다. 열림(빛 투과 약 85%)과 막힘(0%) 사이의 중간 구간이라, 해를 4분의 1 정도만 들여 바닥에 또렷한 빛 얼룩을 남기도록 정했습니다. 구멍 지름만 바꾸면 개구율을 조절할 수 있어 단계를 더 나눌 수도 있습니다.</dd>
+  </dl>
+  <h4>그 밖에</h4>
+  <dl>
+    <dt>웹 모델과 GH 모델은 같은가요?</dt>
+    <dd>웹이 GH 의 FOLD 와 같은 공식으로 다시 계산해 판 위치 차이가 0.2 mm 이하입니다. 일사 값과 창 배치는 GH 가 저장한 pavilion.json 그대로이고, 3장면에서 라이노 glb 를 선으로 겹쳐 확인할 수 있습니다. 공원, 하늘, 보강재 표시는 웹에만 있습니다.</dd>
+    <dt>30 mm 판으로 정말 서나요?</dt>
+    <dd>구조 해석은 하지 않았습니다. 주름 깊이 0.46 m(경간의 1/14)가 얇은 판을 보처럼 만들고, 힌지를 잠근 뒤에야 구조가 된다는 점을 AI 검토로 짚어 잠금판, 받침 슈, 타이, 테두리 프레임을 더했습니다. 다음 단계는 해석으로 처짐을 확인하는 것입니다.</dd>
+    <dt>LVL 을 바깥에 써도 되나요?</dt>
+    <dd>발수, 자외선 차단 오일로 마감하고, 여름 한 시즌 세웠다가 해체해 다시 쓰는 파빌리온이라 바깥에 있는 기간이 짧습니다. 오래 둔다면 내후성 강판이 대안이지만 무게가 약 세 배(16.5 → 47.1 kg/m²)라 발이 더 벌어집니다.</dd>
+  </dl>
+</div>
 <div id="lightbox"><img alt=""></div>
 <div id="renderView"><figure><img alt="파빌리온 실사 렌더"><figcaption>실사 렌더 (라이노). 누르면 닫힙니다.</figcaption></figure></div>
 <div id="msg"><p></p></div>

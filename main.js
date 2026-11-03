@@ -1741,10 +1741,11 @@ addEventListener('keydown', (e) => {
   else if (k >= '1' && k <= '5') go(+k - 1, 0);
   else if (k === 'r' || k === 'R') { if (pov.on) exitPov(); else { camKey = null; moveCamera(true); } }
   else if (k === 'n' || k === 'N') $('#notes').classList.toggle('on');
+  else if (k === 'q' || k === 'Q') { const q = $('#qa'); q.hidden = !q.hidden; }
   else if (k === 'f' || k === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
   else if (k === 'p' || k === 'P') { if (state.scene === 2) $('#foldPlay').click(); if (state.scene === 4) playAssembly(); }
   else if (k === 'o' || k === 'O') setOrtho(!state.ortho);
-  else if (k === 'Escape') { $('#lightbox').classList.remove('on'); exitPov(); }
+  else if (k === 'Escape') { $('#lightbox').classList.remove('on'); $('#qa').hidden = true; exitPov(); }
 });
 
 // ------------------------------------------------------------------ 시작
