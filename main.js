@@ -1546,6 +1546,9 @@ function updatePreview() {
     $('#nM').textContent = r.creases.filter((c) => c.mv === 'M').length;
     $('#nV').textContent = r.creases.filter((c) => c.mv === 'V').length;
   }
+  { let zmin = Infinity; for (let i = 2; i < pos.length; i += 3) zmin = Math.min(zmin, pos[i]);
+    const lift = -zmin + 0.025 * (1 - state.t);
+    for (const o of preview.children) o.position.z += lift; }
   pav.parent.add(preview);
   pav.visible = false;
   $('#ghpNote').textContent = `미리보기: 판 ${r.N}띠 × ${r.n}줄 = ${r.N * r.n}장. 창과 힌지는 빼고 판만 보입니다. 다른 장면으로 넘어가면 GH 값으로 돌아갑니다.`;
@@ -1573,7 +1576,7 @@ for (const k of Object.keys(ghpEl)) {
   el.addEventListener('input', () => {
     if (state.scene !== 2) return;
     ghp[k] = +el.value; syncGhpInputs();
-    if (state.t < 0.999 || foldTw) { cancelFold(); applyPose(1); } else updatePreview();
+    updatePreview();   // 지금 접기 값 그대로 (접기 슬라이더도 계속 쓸 수 있음)
   });
   el.addEventListener('pointerup', () => el.blur());
 }
