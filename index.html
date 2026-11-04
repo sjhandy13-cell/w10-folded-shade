@@ -257,6 +257,11 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
 #card, #side, #title p { transition: opacity .6s; }
 #closing { position: fixed; inset: 0; display: grid; place-items: end center; padding-bottom: 96px; pointer-events: none; opacity: 0; transition: opacity 1.2s; }
 #closing.on { opacity: 1; }
+#closeMat { position: fixed; left: 50%; top: 20px; transform: translateX(-50%); z-index: 3; display: none; align-items: center; gap: 4px; background: var(--veil); padding: 6px 8px; font-size: 13px; }
+body.closing #closeMat { display: flex; }
+#closeMat > span { color: var(--ink-2); margin: 0 6px 0 4px; }
+#closeMat button { background: transparent; border: 1px solid var(--hair); border-radius: 3px; padding: 5px 10px; font: inherit; color: var(--ink); cursor: pointer; }
+#closeMat button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 #closing p { max-width: 24em; text-align: center; font-size: 30px; line-height: 1.5; font-weight: 300; background: var(--veil); padding: 16px 28px; margin: 0; text-wrap: balance; }
 #notes { position: fixed; left: 50%; transform: translateX(-50%); bottom: 72px; width: min(720px, calc(100vw - 32px)); background: var(--ink); color: var(--paper); padding: 12px 16px; font-size: 15px; line-height: 1.6; display: none; }
 #notes.on { display: block; }
@@ -531,6 +536,7 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
 <div id="labels"></div>
 <div id="povBar" hidden><b>사람 시선</b><span>WASD, 방향키 걷기</span><span>Shift 빨리</span><span>끌어서 둘러보기</span><span>Esc 돌아가기</span></div>
 <div id="closing"><p id="closingTxt"></p></div>
+<div id="closeMat" role="group" aria-label="판 재료"><span>판 재료</span></div>
 <div id="notes" role="note"></div>
 <div id="lightbox"><img alt=""></div>
 <div id="renderView"><figure><img alt="파빌리온 실사 렌더"><figcaption>실사 렌더 (라이노). 누르면 닫힙니다.</figcaption></figure></div>

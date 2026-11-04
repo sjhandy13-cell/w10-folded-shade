@@ -1272,6 +1272,11 @@ function setPreset(i) {
   setSun(state.scene === 1 ? +$('#sunHour').value : 15.5);
 }
 $$('#matList input').forEach((r) => r.addEventListener('change', () => setPreset(+r.value)));
+// 5장면 마지막(끝맺음)에도 판 재료 고르기: 같은 setPreset 을 쓰고, 고른 값은 위 목록과 함께 움직임
+$('#closeMat').insertAdjacentHTML('beforeend', PRESETS.map((p, i) => `<button type="button" data-i="${i}" aria-pressed="${i === 0}">${p.name.split(' (')[0].replace(/ \d+ mm$/, '').replace(' 단판적층재', '')}</button>`).join(''));
+function syncCloseMat() { const c = $('#matList input:checked'); const v = c ? +c.value : 0; $$('#closeMat button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.i === v))); }
+$$('#closeMat button').forEach((b) => b.addEventListener('click', () => { setPreset(+b.dataset.i); syncCloseMat(); shadowDirty(); b.blur(); }));
+$$('#matList input').forEach((r) => r.addEventListener('change', syncCloseMat));
 
 // ------------------------------------------------------------------ 재료 카드 (실제 건축 재료)
 const OPEN_RATIO = (() => { const t = TYPES.win_perf || {}, [L, W] = t.size || [1.2, 0.3], [nx, ny, r] = t.holes || [16, 4, 0.022]; return nx * ny * Math.PI * r * r / (L * W); })();
@@ -1375,6 +1380,7 @@ function go(si, st) {
   $$('.scene').forEach((a) => a.classList.toggle('on', +a.dataset.scene === si));
   $$(`.scene[data-scene="${si}"] .step`).forEach((s) => s.classList.toggle('on', s.classList.contains('keep') ? +s.dataset.step <= st : +s.dataset.step === st));
   document.body.classList.toggle('closing', si === 4 && st === 3);
+  if (si === 4 && st === 3) syncCloseMat();
   $$('.sidebox').forEach((s) => s.classList.toggle('on', +s.dataset.for === si));
   $('#refBox').classList.toggle('on', si === 0 && st >= 1);
   $('#ruleBox').hidden = !(si === 1 && st >= 1);
