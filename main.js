@@ -1531,6 +1531,21 @@ function updatePreview() {
   preview.position.copy(pav.position); preview.quaternion.copy(pav.quaternion); preview.scale.copy(pav.scale);
   const m = new THREE.Mesh(g, ghpMat); m.castShadow = true; m.receiveShadow = true; preview.add(m);
   preview.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 1), ghpLine));
+  if ($('#creaseToggle').checked) {
+    const idx = {}; P.frames.forEach((f) => { idx[f.band + ',' + f.j] = f; });
+    const cM = new THREE.Color(tok('--signal')), cV = new THREE.Color(tok('--valley')), cp = [], cc = [];
+    for (const c of r.creases) {
+      const fa = c.kind === 'gen' ? idx[c.kb + ',' + (c.ja - 1)] : idx[c.ka + ',' + c.ja];
+      const fb = c.kind === 'gen' ? idx[c.kb + ',' + c.ja] : idx[(c.ka + 1) + ',' + c.ja];
+      const off = fa && fb ? V.mul(V.unit(V.add(fa.n, fb.n)), 0.03) : [0, 0, 0];
+      cp.push(...V.add(P.B[c.ka][c.ja], off), ...V.add(P.B[c.kb][c.jb], off));
+      const k = c.mv === 'M' ? cM : cV; cc.push(k.r, k.g, k.b, k.r, k.g, k.b);
+    }
+    const lg = new LineSegmentsGeometry(); lg.setPositions(cp); lg.setColors(cc);
+    const cl = new LineSegments2(lg, creaseMat); cl.userData.noAO = true; preview.add(cl);
+    $('#nM').textContent = r.creases.filter((c) => c.mv === 'M').length;
+    $('#nV').textContent = r.creases.filter((c) => c.mv === 'V').length;
+  }
   pav.parent.add(preview);
   pav.visible = false;
   $('#ghpNote').textContent = `미리보기: 판 ${r.N}띠 × ${r.n}줄 = ${r.N * r.n}장. 창과 힌지는 빼고 판만 보입니다. 다른 장면으로 넘어가면 GH 값으로 돌아갑니다.`;
@@ -1547,6 +1562,8 @@ function syncGhpInputs() {
 }
 function resetPreview() {
   Object.assign(ghp, GHP0); syncGhpInputs(); dropPreview(); pav.visible = true;
+  $('#nM').textContent = rig.creases.filter((c) => c.mv === 'M').length;
+  $('#nV').textContent = rig.creases.filter((c) => c.mv === 'V').length;
   $('#ghpNote').textContent = 'GH 와 같은 접기 공식으로 판만 다시 계산한 미리보기입니다. 다른 장면으로 넘어가면 GH 값으로 돌아갑니다.';
   shadowDirty();
 }
@@ -1561,6 +1578,7 @@ for (const k of Object.keys(ghpEl)) {
   el.addEventListener('pointerup', () => el.blur());
 }
 $('#ghpReset').addEventListener('click', () => resetPreview());
+$('#creaseToggle').addEventListener('change', () => { if (preview) updatePreview(); });
 
 bindRange($('#foldT'), (v) => { if (state.scene === 2) { state.userFold = true; cancelFold(); applyPose(v / 100); } });
 bindRange($('#explode'), (v) => { if (state.scene === 4 && explodeTw) { tweens.delete(explodeTw); explodeTw = null; } if (state.scene === 4 && Math.abs(v / 100 - state.explode) > 1e-3) { state.explode = v / 100; $('#explodeOut').textContent = v + '%'; applyPose(state.t); if (state.joint) { camKey = null; moveCamera(); } } });
