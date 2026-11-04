@@ -361,6 +361,15 @@ body.closing #card, body.closing #side, body.closing #title p { opacity: 0; poin
         <input type="range" id="foldT" min="0" max="100" step="1" value="100">
       </div>
       <div class="btns"><button type="button" class="btn" id="foldPlay">처음부터 접기</button></div>
+      <div class="ghp">
+        <h3 style="margin-top:14px">GH 입력값 바꿔 보기</h3>
+        <div class="ctl"><label class="row" for="ghpW"><span>판 폭 (w)</span><output id="ghpWOut"></output></label><input type="range" id="ghpW" min="0.4" max="0.9" step="0.05"></div>
+        <div class="ctl"><label class="row" for="ghpN"><span>줄 수 (n)</span><output id="ghpNOut"></output></label><input type="range" id="ghpN" min="12" max="44" step="2"></div>
+        <div class="ctl"><label class="row" for="ghpPhi"><span>주름 각 (phi)</span><output id="ghpPhiOut"></output></label><input type="range" id="ghpPhi" min="30" max="70" step="1"></div>
+        <div class="ctl"><label class="row" for="ghpRot"><span>방향 (rot)</span><output id="ghpRotOut"></output></label><input type="range" id="ghpRot" min="-180" max="180" step="5"></div>
+        <div class="btns"><button type="button" class="btn" id="ghpReset">GH 값으로 되돌리기</button></div>
+        <p class="small" id="ghpNote">GH 와 같은 접기 공식으로 판만 다시 계산한 미리보기입니다. 다른 장면으로 넘어가면 GH 값으로 돌아갑니다.</p>
+      </div>
       <p class="mv" id="foldStats"></p>
       <label class="check"><input type="checkbox" id="creaseToggle" checked> 접힘선 보기</label>
       <p class="mv"><span class="key" style="background:var(--signal)"></span>산접기 <b id="nM">0</b> <span class="key" style="background:var(--valley);margin-left:10px"></span>골접기 <b id="nV">0</b></p>

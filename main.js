@@ -370,6 +370,7 @@ function applyPose(t) {
   if (loadPath.group.visible) safe(buildLoadPath);
   safe(updateFoldReadout);
   safe(refreshFixes);
+  safe(updatePreview);
   shadowDirty();
 }
 
@@ -1414,7 +1415,8 @@ function setExplode(v) {
 
 function enter(si, st, ps, pst) {
   const run = ++runId;
-  if (si !== 4 && ps === 4) { clearMemberFilter(); setPreset(0); }   // 5장면에서 고른 부재·재료는 다른 장면에 남기지 않음
+  if (si !== 4 && ps === 4) { clearMemberFilter(); setPreset(0); }
+  if (si !== 2 && ps === 2) resetPreview();   // 3장면에서 바꾼 GH 입력값은 다른 장면에 남기지 않음   // 5장면에서 고른 부재·재료는 다른 장면에 남기지 않음
   // 기본값 (장면마다 같은 것을 같은 방식으로)
   setPlateMode(si === 1 && st === 0 ? 'data' : 'material');
   setWindows(!(si === 1 && st === 0));
@@ -1507,6 +1509,59 @@ function bindRange(el, fn) {
   upd();
 }
 bindRange($('#sunHour'), (v) => { if (state.scene === 1) { if (hourTw) { tweens.delete(hourTw); hourTw = null; } setSun(v); if (state.extView) { state.extView = false; moveCamera(); } } });
+// 3장면: GH 입력값(판 폭, 줄 수, 주름 각, 방향)을 바꾸면 판만 다시 접어 보는 미리보기
+const GHP0 = { w: rig.w, n: rig.n, phi: rig.phi, rot: rig.rot };
+var ghp = { ...GHP0 };
+var preview = null;
+const ghpFmt = { w: (v) => v.toFixed(2) + ' m', n: (v) => v + '줄', phi: (v) => v + '°', rot: (v) => v + '°' };
+const ghpEl = { w: $('#ghpW'), n: $('#ghpN'), phi: $('#ghpPhi'), rot: $('#ghpRot') };
+const ghpOut = { w: $('#ghpWOut'), n: $('#ghpNOut'), phi: $('#ghpPhiOut'), rot: $('#ghpRotOut') };
+const ghpChanged = () => Object.keys(GHP0).some((k) => Math.abs(ghp[k] - GHP0[k]) > 1e-9);
+function dropPreview() { if (!preview) return; pav.parent.remove(preview); preview.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); preview = null; }
+function updatePreview() {
+  if (!ghp) return;
+  if (!ghpChanged()) { if (preview) { dropPreview(); pav.visible = true; shadowDirty(); } return; }
+  let r;
+  try { r = new Rig({ ...D.params, w: ghp.w, n: ghp.n, phi: ghp.phi, rot: ghp.rot }, 1.0); } catch (err) { console.error('[미리보기]', err); return; }
+  const P = r.pose(state.t), pos = [];
+  for (const f of P.frames) { const [a, b, c, d] = f.v; pos.push(...a, ...b, ...c, ...a, ...c, ...d); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  dropPreview();
+  preview = new THREE.Group();
+  preview.position.copy(pav.position); preview.quaternion.copy(pav.quaternion); preview.scale.copy(pav.scale);
+  const m = new THREE.Mesh(g, ghpMat); m.castShadow = true; m.receiveShadow = true; preview.add(m);
+  preview.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 1), ghpLine));
+  pav.parent.add(preview);
+  pav.visible = false;
+  $('#ghpNote').textContent = `미리보기: 판 ${r.N}띠 × ${r.n}줄 = ${r.N * r.n}장. 창과 힌지는 빼고 판만 보입니다. 다른 장면으로 넘어가면 GH 값으로 돌아갑니다.`;
+  shadowDirty();
+}
+const ghpMat = new THREE.MeshStandardMaterial({ color: MAT.plate.color.clone(), roughness: 0.85, side: THREE.DoubleSide });
+const ghpLine = new THREE.LineBasicMaterial({ color: 0x18202b, transparent: true, opacity: 0.35 });
+function syncGhpInputs() {
+  for (const k of Object.keys(ghpEl)) {
+    const el = ghpEl[k]; el.value = ghp[k];
+    el.style.setProperty('--p', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+    ghpOut[k].textContent = ghpFmt[k](ghp[k]);
+  }
+}
+function resetPreview() {
+  Object.assign(ghp, GHP0); syncGhpInputs(); dropPreview(); pav.visible = true;
+  $('#ghpNote').textContent = 'GH 와 같은 접기 공식으로 판만 다시 계산한 미리보기입니다. 다른 장면으로 넘어가면 GH 값으로 돌아갑니다.';
+  shadowDirty();
+}
+syncGhpInputs();
+for (const k of Object.keys(ghpEl)) {
+  const el = ghpEl[k];
+  el.addEventListener('input', () => {
+    if (state.scene !== 2) return;
+    ghp[k] = +el.value; syncGhpInputs();
+    if (state.t < 0.999 || foldTw) { cancelFold(); applyPose(1); } else updatePreview();
+  });
+  el.addEventListener('pointerup', () => el.blur());
+}
+$('#ghpReset').addEventListener('click', () => resetPreview());
+
 bindRange($('#foldT'), (v) => { if (state.scene === 2) { state.userFold = true; cancelFold(); applyPose(v / 100); } });
 bindRange($('#explode'), (v) => { if (state.scene === 4 && explodeTw) { tweens.delete(explodeTw); explodeTw = null; } if (state.scene === 4 && Math.abs(v / 100 - state.explode) > 1e-3) { state.explode = v / 100; $('#explodeOut').textContent = v + '%'; applyPose(state.t); if (state.joint) { camKey = null; moveCamera(); } } });
 $('#foldPlay').addEventListener('click', () => { cancelFold(); applyPose(0); animateT(1, 4.2); });
